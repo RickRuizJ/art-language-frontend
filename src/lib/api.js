@@ -85,5 +85,22 @@ export const userAPI = {
 export const materialAPI = {
   getAll: () => api.get('/materials'),
 };
-
 export default api;
+
+// Workbook API
+export const workbookAPI = {
+  getAll: (params) => api.get('/workbooks', { params }),
+  getOne: (id) => api.get(`/workbooks/${id}`),
+  create: (data) => api.post('/workbooks', data),
+  update: (id, data) => api.put(`/workbooks/${id}`, data),
+  delete: (id) => api.delete(`/workbooks/${id}`),
+  addWorksheet: (workbookId, worksheetId, displayOrder) => 
+    api.post(`/workbooks/${workbookId}/worksheets/${worksheetId}`, { displayOrder }),
+  removeWorksheet: (workbookId, worksheetId) => 
+    api.delete(`/workbooks/${workbookId}/worksheets/${worksheetId}`),
+  reorder: (workbookId, worksheetOrders) => 
+    api.put(`/workbooks/${workbookId}/reorder`, { worksheetOrders }),
+  togglePublish: (id) => api.post(`/workbooks/${id}/publish`)
+};
+
+
