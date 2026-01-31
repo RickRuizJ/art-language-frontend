@@ -310,7 +310,7 @@
   }
   
   .card-interactive:active {
-    @apply scale-98;
+    @apply scale-95;
   }
 }
 
