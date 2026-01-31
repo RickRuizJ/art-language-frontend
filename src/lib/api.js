@@ -52,10 +52,15 @@ export const authAPI = {
 export const worksheetAPI = {
   getAll: (params) => api.get('/worksheets', { params }),
   getOne: (id) => api.get(`/worksheets/${id}`),
+  getFile: (id) => api.get(`/worksheets/${id}/file`),
   create: (data) => api.post('/worksheets', data),
   update: (id, data) => api.put(`/worksheets/${id}`, data),
   delete: (id) => api.delete(`/worksheets/${id}`),
   togglePublish: (id) => api.post(`/worksheets/${id}/publish`),
+  upload: (formData) => api.post('/worksheets/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  saveGoogleLink: (data) => api.post('/worksheets/google-link', data),
 };
 
 // Submission API
