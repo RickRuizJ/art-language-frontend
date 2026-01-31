@@ -191,10 +191,16 @@ export default function TeacherDashboard() {
               <h3 className="text-2xl font-display font-bold text-neutral-900">
                 Your Worksheets
               </h3>
-              <Link href="/worksheets/create" className="btn btn-primary">
-                <Plus className="w-5 h-5" />
-                Create Worksheet
-              </Link>
+              <div className="flex gap-2">
+                <Link href="/worksheets/upload" className="btn btn-outline">
+                  <Plus className="w-5 h-5" />
+                  Upload
+                </Link>
+                <Link href="/worksheets/create" className="btn btn-primary">
+                  <Plus className="w-5 h-5" />
+                  Create Worksheet
+                </Link>
+              </div>
             </div>
 
             {worksheets.length === 0 ? (
@@ -232,7 +238,7 @@ export default function TeacherDashboard() {
               <h3 className="text-2xl font-display font-bold text-neutral-900">
                 Your Groups
               </h3>
-              <Link href="/groups/create" className="btn btn-primary">
+              <Link href="/groups" className="btn btn-primary">
                 <Plus className="w-5 h-5" />
                 Create Group
               </Link>
@@ -247,7 +253,7 @@ export default function TeacherDashboard() {
                 <p className="text-neutral-500 mb-6">
                   Create a group to organize your students
                 </p>
-                <Link href="/groups/create" className="btn btn-primary">
+                <Link href="/groups" className="btn btn-primary">
                   <Plus className="w-5 h-5" />
                   Create Your First Group
                 </Link>
