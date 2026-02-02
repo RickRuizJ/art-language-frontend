@@ -131,6 +131,10 @@ export default function UploadWorksheetPage() {
       await worksheetAPI.upload(fd);
       router.push('/dashboard/teacher');
     } catch (err) {
+      console.error('[UPLOAD ERROR] Full error:', err);
+      console.error('[UPLOAD ERROR] Response status:', err.response?.status);
+      console.error('[UPLOAD ERROR] Response data:', err.response?.data);
+      console.error('[UPLOAD ERROR] Request:', err.config);
       setSubmitError(err.response?.data?.message || 'Upload fallido. Intenta de nuevo.');
     } finally { setLoading(false); }
   };

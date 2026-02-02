@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { groupAPI, worksheetAPI } from '@/lib/api';
 import Link from 'next/link';
-import { ArrowLeft, Users, BookOpen, Plus, Trash2, UserMinus } from 'lucide-react';
+import { ArrowLeft, Users, BookOpen, Plus, Trash2, UserMinus, Copy, Check } from 'lucide-react';
 
 export default function GroupDetailPage() {
   const params = useParams();
@@ -16,6 +16,16 @@ export default function GroupDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('students');
+  
+  // Add Students Modal state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [availableStudents, setAvailableStudents] = useState([]);
+  const [selectedStudents, setSelectedStudents] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [modalLoading, setModalLoading] = useState(false);
+  
+  // Copy join code state
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (params.id) {
@@ -28,8 +38,6 @@ export default function GroupDetailPage() {
       setLoading(true);
       setError(null);
 
-      // For now, fetch all groups and filter by ID
-      // TODO: Create dedicated endpoint GET /api/groups/:id
       const response = await groupAPI.getAll();
       const groups = response.data.data.groups;
       const foundGroup = groups.find(g => g.id === params.id);
@@ -45,6 +53,64 @@ export default function GroupDetailPage() {
       setError(err.response?.data?.message || 'Failed to load group');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAvailableStudents = async () => {
+    try {
+      setModalLoading(true);
+      const response = await groupAPI.getAvailableStudents();
+      const allStudents = response.data.data.students;
+      
+      // Filter out students already in the group
+      const currentMemberIds = group.members.map(m => m.studentId);
+      const available = allStudents.filter(s => !currentMemberIds.includes(s.id));
+      
+      setAvailableStudents(available);
+    } catch (err) {
+      console.error('Error fetching students:', err);
+      alert('Failed to load students');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleOpenAddModal = () => {
+    setShowAddModal(true);
+    setSelectedStudents([]);
+    setSearchQuery('');
+    fetchAvailableStudents();
+  };
+
+  const handleToggleStudent = (studentId) => {
+    setSelectedStudents(prev => 
+      prev.includes(studentId)
+        ? prev.filter(id => id !== studentId)
+        : [...prev, studentId]
+    );
+  };
+
+  const handleAddStudents = async () => {
+    if (selectedStudents.length === 0) return;
+
+    try {
+      setModalLoading(true);
+      await groupAPI.addStudents(params.id, selectedStudents);
+      
+      // Refresh group data
+      await fetchGroup();
+      
+      // Close modal and reset
+      setShowAddModal(false);
+      setSelectedStudents([]);
+      setSearchQuery('');
+      
+      alert(`Successfully added ${selectedStudents.length} student(s)`);
+    } catch (err) {
+      console.error('Error adding students:', err);
+      alert('Failed to add students');
+    } finally {
+      setModalLoading(false);
     }
   };
 
@@ -64,12 +130,30 @@ export default function GroupDetailPage() {
 
     try {
       await groupAPI.removeStudent(params.id, studentId);
-      // Refresh group data
       fetchGroup();
     } catch (err) {
       alert('Failed to remove student');
     }
   };
+
+  const handleCopyJoinCode = () => {
+    if (!group?.joinCode) return;
+    
+    navigator.clipboard.writeText(group.joinCode);
+    setCopied(true);
+    
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Filter students based on search
+  const filteredStudents = availableStudents.filter(student => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      student.firstName?.toLowerCase().includes(searchLower) ||
+      student.lastName?.toLowerCase().includes(searchLower) ||
+      student.email?.toLowerCase().includes(searchLower)
+    );
+  });
 
   if (loading) {
     return (
@@ -151,6 +235,44 @@ export default function GroupDetailPage() {
         </div>
       </header>
 
+      {/* Join Code Card (Teacher only) */}
+      {isOwner && group.joinCode && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="bg-gradient-to-r from-primary-50 to-secondary-50 border border-primary-200 rounded-2xl p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-neutral-900 mb-1">Group Join Code</h3>
+                <p className="text-sm text-neutral-600 mb-3">
+                  Share this code with students so they can join this group
+                </p>
+                <div className="flex items-center gap-3">
+                  <code className="text-3xl font-bold tracking-wider bg-white px-6 py-3 rounded-lg border-2 border-primary-300 text-primary-700">
+                    {group.joinCode}
+                  </code>
+                  <button
+                    onClick={handleCopyJoinCode}
+                    className="btn btn-primary"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-4 h-4" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" />
+                        Copy Code
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div className="text-6xl">🎓</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -225,7 +347,10 @@ export default function GroupDetailPage() {
             <div className="p-6 border-b border-neutral-200 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-neutral-900">Students</h2>
               {isOwner && (
-                <button className="btn btn-primary">
+                <button 
+                  onClick={handleOpenAddModal}
+                  className="btn btn-primary"
+                >
                   <Plus className="w-4 h-4" />
                   Add Students
                 </button>
@@ -293,6 +418,97 @@ export default function GroupDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Add Students Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-neutral-200">
+              <h3 className="text-xl font-bold text-neutral-900">Add Students to {group.name}</h3>
+              <p className="text-sm text-neutral-600 mt-1">
+                Select students to add to this group
+              </p>
+            </div>
+
+            {/* Search */}
+            <div className="p-6 border-b border-neutral-200">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by name or email..."
+                className="input w-full"
+              />
+              {selectedStudents.length > 0 && (
+                <p className="text-sm text-primary-600 mt-2">
+                  {selectedStudents.length} student(s) selected
+                </p>
+              )}
+            </div>
+
+            {/* Student List */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {modalLoading ? (
+                <div className="text-center py-12">
+                  <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto mb-3"></div>
+                  <p className="text-neutral-600">Loading students...</p>
+                </div>
+              ) : filteredStudents.length === 0 ? (
+                <div className="text-center py-12 text-neutral-500">
+                  <Users className="w-12 h-12 mx-auto mb-3 text-neutral-400" />
+                  <p>No available students found</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredStudents.map(student => (
+                    <label
+                      key={student.id}
+                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-neutral-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedStudents.includes(student.id)}
+                        onChange={() => handleToggleStudent(student.id)}
+                        className="w-4 h-4 text-primary-600 rounded"
+                      />
+                      <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                        <span className="text-primary-700 font-medium">
+                          {student.firstName?.[0]}
+                        </span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-neutral-900">
+                          {student.firstName} {student.lastName}
+                        </p>
+                        <p className="text-sm text-neutral-600">{student.email}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-neutral-200 flex gap-3">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="btn btn-outline flex-1"
+                disabled={modalLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddStudents}
+                disabled={selectedStudents.length === 0 || modalLoading}
+                className="btn btn-primary flex-1"
+              >
+                {modalLoading ? 'Adding...' : `Add ${selectedStudents.length || ''} Student${selectedStudents.length !== 1 ? 's' : ''}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

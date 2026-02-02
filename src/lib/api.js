@@ -57,9 +57,7 @@ export const worksheetAPI = {
   update: (id, data) => api.put(`/worksheets/${id}`, data),
   delete: (id) => api.delete(`/worksheets/${id}`),
   togglePublish: (id) => api.post(`/worksheets/${id}/publish`),
-  upload: (formData) => api.post('/worksheets/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  }),
+  upload: (formData) => api.post('/worksheets/upload', formData),
   saveGoogleLink: (data) => api.post('/worksheets/google-link', data),
 };
 
@@ -75,11 +73,15 @@ export const submissionAPI = {
 // Group API
 export const groupAPI = {
   getAll: () => api.get('/groups'),
-  getOne: (id) => api.get(`/groups/${id}`),
+  getOne: (id) => api.get('/groups/${id}`),
   create: (data) => api.post('/groups', data),
   addStudents: (groupId, studentIds) => api.post(`/groups/${groupId}/students`, { studentIds }),
   removeStudent: (groupId, studentId) => api.delete(`/groups/${groupId}/students/${studentId}`),
   delete: (id) => api.delete(`/groups/${id}`),
+  // NUEVO: Obtener estudiantes disponibles para agregar
+  getAvailableStudents: () => api.get('/groups/available-students'),
+  // NUEVO: Unirse a grupo con código
+  joinWithCode: (joinCode) => api.post('/groups/join', { joinCode }),
 };
 
 // User API
@@ -91,7 +93,6 @@ export const userAPI = {
 export const materialAPI = {
   getAll: () => api.get('/materials'),
 };
-export default api;
 
 // Workbook API
 export const workbookAPI = {
@@ -100,13 +101,9 @@ export const workbookAPI = {
   create: (data) => api.post('/workbooks', data),
   update: (id, data) => api.put(`/workbooks/${id}`, data),
   delete: (id) => api.delete(`/workbooks/${id}`),
-  addWorksheet: (workbookId, worksheetId, displayOrder) => 
-    api.post(`/workbooks/${workbookId}/worksheets/${worksheetId}`, { displayOrder }),
-  removeWorksheet: (workbookId, worksheetId) => 
-    api.delete(`/workbooks/${workbookId}/worksheets/${worksheetId}`),
-  reorder: (workbookId, worksheetOrders) => 
-    api.put(`/workbooks/${workbookId}/reorder`, { worksheetOrders }),
-  togglePublish: (id) => api.post(`/workbooks/${id}/publish`)
+  addWorksheet: (id, worksheetId) => api.post(`/workbooks/${id}/worksheets`, { worksheetId }),
+  removeWorksheet: (id, worksheetId) => api.delete(`/workbooks/${id}/worksheets/${worksheetId}`),
+  reorderWorksheets: (id, worksheetIds) => api.put(`/workbooks/${id}/reorder`, { worksheetIds }),
 };
 
-
+export default api;
