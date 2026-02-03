@@ -73,7 +73,7 @@ export const submissionAPI = {
 // Group API
 export const groupAPI = {
   getAll: () => api.get('/groups'),
-  getOne: (id) => api.get('/groups/${id}`),
+  getOne: (id) => api.get(`/groups/${id}`),
   create: (data) => api.post('/groups', data),
   addStudents: (groupId, studentIds) => api.post(`/groups/${groupId}/students`, { studentIds }),
   removeStudent: (groupId, studentId) => api.delete(`/groups/${groupId}/students/${studentId}`),
