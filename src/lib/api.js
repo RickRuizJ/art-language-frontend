@@ -10,13 +10,27 @@ const api = axios.create({
   },
 });
 
-// Request interceptor to add auth token
+// ─── Request interceptor ──────────────────────────────────────────────────────
+// Two jobs:
+//   1. Attach the JWT bearer token.
+//   2. When the payload is a FormData instance (file upload), DELETE the
+//      hard-coded "application/json" Content-Type so that axios can set
+//      "multipart/form-data; boundary=…" automatically.  If that header stays,
+//      the browser sends the request as JSON, Express's json() parser eats the
+//      stream, and Multer never sees the file.
 api.interceptors.request.use(
   (config) => {
+    // 1. Auth token
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // 2. Let axios auto-set Content-Type for FormData
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+
     return config;
   },
   (error) => {
@@ -78,9 +92,7 @@ export const groupAPI = {
   addStudents: (groupId, studentIds) => api.post(`/groups/${groupId}/students`, { studentIds }),
   removeStudent: (groupId, studentId) => api.delete(`/groups/${groupId}/students/${studentId}`),
   delete: (id) => api.delete(`/groups/${id}`),
-  // NUEVO: Obtener estudiantes disponibles para agregar
   getAvailableStudents: () => api.get('/groups/available-students'),
-  // NUEVO: Unirse a grupo con código
   joinWithCode: (joinCode) => api.post('/groups/join', { joinCode }),
 };
 
@@ -101,9 +113,13 @@ export const workbookAPI = {
   create: (data) => api.post('/workbooks', data),
   update: (id, data) => api.put(`/workbooks/${id}`, data),
   delete: (id) => api.delete(`/workbooks/${id}`),
-  addWorksheet: (id, worksheetId) => api.post(`/workbooks/${id}/worksheets`, { worksheetId }),
-  removeWorksheet: (id, worksheetId) => api.delete(`/workbooks/${id}/worksheets/${worksheetId}`),
-  reorderWorksheets: (id, worksheetIds) => api.put(`/workbooks/${id}/reorder`, { worksheetIds }),
+  addWorksheet: (workbookId, worksheetId, displayOrder) =>
+    api.post(`/workbooks/${workbookId}/worksheets/${worksheetId}`, { displayOrder }),
+  removeWorksheet: (workbookId, worksheetId) =>
+    api.delete(`/workbooks/${workbookId}/worksheets/${worksheetId}`),
+  reorder: (workbookId, worksheetOrders) =>
+    api.put(`/workbooks/${workbookId}/reorder`, { worksheetOrders }),
+  togglePublish: (id) => api.post(`/workbooks/${id}/publish`),
 };
 
 export default api;
