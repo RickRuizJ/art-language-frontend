@@ -226,10 +226,12 @@ export default function GroupDetailPage() {
             </div>
 
             {isOwner && (
-              <button onClick={handleDeleteGroup} className="btn btn-ghost text-red-600">
-                <Trash2 className="w-4 h-4" />
-                Delete Group
-              </button>
+              <button 
+  onClick={() => setShowAssignModal(true)}
+  className="btn btn-primary"
+>
+  Assign Worksheet
+</button>
             )}
           </div>
         </div>
