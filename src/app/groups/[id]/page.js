@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { groupAPI, worksheetAPI } from '@/lib/api';
+import { groupAPI, worksheetAPI, assignmentAPI } from '@/lib/api';
 import Link from 'next/link';
 import { ArrowLeft, Users, BookOpen, Plus, Trash2, UserMinus, Copy, Check } from 'lucide-react';
+import AssignWorksheetModal from '@/components/AssignWorksheetModal';
 
 export default function GroupDetailPage() {
   const params = useParams();
@@ -26,10 +27,15 @@ export default function GroupDetailPage() {
   
   // Copy join code state
   const [copied, setCopied] = useState(false);
+  
+  // Assignment Modal state
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignments, setAssignments] = useState([]);
 
   useEffect(() => {
     if (params.id) {
       fetchGroup();
+      fetchAssignments();
     }
   }, [params.id]);
 
@@ -113,6 +119,21 @@ export default function GroupDetailPage() {
       setModalLoading(false);
     }
   };
+
+  const handleRemoveAssignment = async (assignmentId) => {
+    if (!confirm('Are you sure you want to remove this assignment from the group?')) {
+      return;
+    }
+    
+    try {
+      await assignmentAPI.remove(params.id, assignmentId);
+      fetchAssignments(); // Refresh list
+    } catch (err) {
+      console.error('Error removing assignment:', err);
+      alert('Failed to remove assignment. Please try again.');
+    }
+  };
+
 
   const handleDeleteGroup = async () => {
     if (!confirm('Are you sure you want to delete this group? This cannot be undone.')) return;
@@ -405,18 +426,75 @@ export default function GroupDetailPage() {
             <div className="p-6 border-b border-neutral-200 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-neutral-900">Assigned Worksheets</h2>
               {isOwner && (
-                <button className="btn btn-primary">
+                <button onClick={() => setShowAssignModal(true)} className="btn btn-primary">
                   <Plus className="w-4 h-4" />
                   Assign Worksheet
                 </button>
               )}
             </div>
 
-            <div className="p-12 text-center text-neutral-500">
-              <BookOpen className="w-12 h-12 mx-auto mb-3 text-neutral-400" />
-              <p className="text-lg mb-2">No worksheets assigned</p>
-              <p className="text-sm">Assign worksheets to this group to track progress</p>
-            </div>
+
+            {assignments.length === 0 ? (
+              <div className="p-12 text-center">
+                <BookOpen className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-neutral-700 mb-2">
+                  No worksheets assigned yet
+                </h3>
+                <p className="text-neutral-500 mb-6">
+                  Assign worksheets to track student progress and monitor performance
+                </p>
+                {isOwner && (
+                  <button
+                    onClick={() => setShowAssignModal(true)}
+                    className="btn btn-primary inline-flex items-center gap-2"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Assign Your First Worksheet
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="divide-y divide-neutral-200">
+                {assignments.map((assignment) => (
+                  <div key={assignment.id} className="p-4 hover:bg-neutral-50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-neutral-900">
+                          {assignment.worksheet.title}
+                        </h4>
+                        {assignment.worksheet.description && (
+                          <p className="text-sm text-neutral-600 mt-1">
+                            {assignment.worksheet.description}
+                          </p>
+                        )}
+                        {assignment.dueDate && (
+                          <p className="text-sm text-neutral-500 mt-2">
+                            📅 Due: {new Date(assignment.dueDate).toLocaleDateString()}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-3 mt-2 text-xs text-neutral-500">
+                          {assignment.worksheet.subject && (
+                            <span>📚 {assignment.worksheet.subject}</span>
+                          )}
+                          {assignment.worksheet.gradeLevel && (
+                            <span>🎓 {assignment.worksheet.gradeLevel}</span>
+                          )}
+                        </div>
+                      </div>
+                      {isOwner && (
+                        <button
+                          onClick={() => handleRemoveAssignment(assignment.id)}
+                          className="ml-4 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Remove assignment"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -511,6 +589,21 @@ export default function GroupDetailPage() {
           </div>
         </div>
       )}
+
+
+      {/* Assign Worksheet Modal */}
+      {showAssignModal && (
+        <AssignWorksheetModal
+          groupId={params.id}
+          groupName={group?.name}
+          onClose={() => setShowAssignModal(false)}
+          onSuccess={() => {
+            fetchAssignments();
+            setShowAssignModal(false);
+          }}
+        />
+      )}
+
     </div>
   );
 }

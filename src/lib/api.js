@@ -96,6 +96,16 @@ export const groupAPI = {
   joinWithCode: (joinCode) => api.post('/groups/join', { joinCode }),
 };
 
+// Assignment API
+export const assignmentAPI = {
+  assign: (groupId, data) => 
+    api.post(`/groups/${groupId}/assignments`, data),
+  getGroupAssignments: (groupId) => 
+    api.get(`/groups/${groupId}/assignments`),
+  remove: (groupId, assignmentId) => 
+    api.delete(`/groups/${groupId}/assignments/${assignmentId}`)
+};
+
 // User API
 export const userAPI = {
   getAll: (params) => api.get('/users', { params }),
@@ -123,29 +133,3 @@ export const workbookAPI = {
 };
 
 export default api;
-// Assignment API
-export const assignmentAPI = {
-  // Assign worksheet to group
-  assign: (groupId, data) => 
-    api.post(`/groups/${groupId}/assignments`, data),
-  
-  // Get group assignments
-  getGroupAssignments: (groupId) => 
-    api.get(`/groups/${groupId}/assignments`),
-  
-  // Remove assignment
-  remove: (groupId, assignmentId) => 
-    api.delete(`/groups/${groupId}/assignments/${assignmentId}`)
-};
-
-// =====================================================
-// Uso:
-// import { assignmentAPI } from '@/lib/api';
-//
-// await assignmentAPI.assign(groupId, {
-//   worksheetId: 'abc-123',
-//   dueDate: '2026-02-20',
-//   instructions: 'Complete all questions'
-// });
-// =====================================================
-
