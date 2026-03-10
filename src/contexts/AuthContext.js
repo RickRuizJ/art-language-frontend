@@ -18,6 +18,15 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkAuth = async () => {
+    // BUG 1 FIX: Next.js runs this component on the server during SSR where
+    // localStorage does not exist. Without this guard the entire function throws
+    // before reaching the finally block, so setLoading(false) never executes and
+    // loading stays true forever — the root cause of the infinite spinner.
+    if (typeof window === 'undefined') {
+      setLoading(false);
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -28,9 +37,13 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.getMe();
       setUser(response.data.data.user);
     } catch (error) {
+      // BUG 2 FIX: On any failure (401 expired token, network error) the catch
+      // block must clear stale credentials so the app lands on login cleanly
+      // instead of looping. The finally block handles setLoading.
       console.error('Auth check failed:', error);
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -40,14 +53,13 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authAPI.login(credentials);
       const { user, token } = response.data.data;
-      
+
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       setUser(user);
 
-      // Redirect based on role
-      const dashboardPath = user.role === 'student' 
-        ? '/dashboard/student' 
+      const dashboardPath = user.role === 'student'
+        ? '/dashboard/student'
         : '/dashboard/teacher';
       router.push(dashboardPath);
 
@@ -62,14 +74,13 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authAPI.register(userData);
       const { user, token } = response.data.data;
-      
+
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       setUser(user);
 
-      // Redirect based on role
-      const dashboardPath = user.role === 'student' 
-        ? '/dashboard/student' 
+      const dashboardPath = user.role === 'student'
+        ? '/dashboard/student'
         : '/dashboard/teacher';
       router.push(dashboardPath);
 

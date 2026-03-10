@@ -2,15 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { worksheetAPI, groupAPI, submissionAPI } from '@/lib/api';
-import { 
-  BookOpen, Users, FileText, BarChart3, Plus, 
-  LogOut, Eye, Edit, Trash2, CheckCircle 
+import { worksheetAPI, groupAPI } from '@/lib/api';
+import {
+  BookOpen, Users, FileText, BarChart3, Plus,
+  LogOut, Eye, Edit, Trash2, CheckCircle
 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function TeacherDashboard() {
-  const { user, logout } = useAuth();
+  const { user, logout, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('worksheets');
   const [worksheets, setWorksheets] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -23,10 +23,35 @@ export default function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // BUG FIX: The original code only checked `if (user)` to decide whether to
+    // fetch data. This creates a deadlock:
+    //
+    //   1. AuthContext starts with loading=true, user=null.
+    //   2. This useEffect fires with user=null → fetchData() is skipped.
+    //   3. AuthContext finishes checkAuth() and sets user (or leaves it null).
+    //   4. useEffect fires again with the real user value.
+    //
+    // BUT: if the user was already logged in and /auth/me succeeds instantly,
+    // step 3 sets user and triggers step 4 correctly.
+    //
+    // The REAL deadlock happens when AuthContext is still resolving (authLoading=true)
+    // and a 401 from the API triggers the response interceptor redirect before
+    // AuthContext has a chance to set the user. The dashboard's own loading state
+    // stays true because fetchData() was never called (user was null at mount time).
+    //
+    // FIX: Wait for AuthContext to finish its own check before deciding anything.
+    // If auth is still loading, do nothing yet. Once it's done, either fetch
+    // data (user exists) or stop the local spinner (no user → redirect to login).
+    if (authLoading) return;
+
     if (user) {
       fetchData();
+    } else {
+      // Auth resolved but no user — clear the local spinner so the page doesn't
+      // hang. The response interceptor in api.js will redirect to /login.
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   const fetchData = async () => {
     try {
@@ -41,7 +66,6 @@ export default function TeacherDashboard() {
       setWorksheets(worksheetsData);
       setGroups(groupsData);
 
-      // Calculate total students (unique)
       const studentSet = new Set();
       groupsData.forEach(group => {
         group.members?.forEach(member => {
@@ -53,7 +77,7 @@ export default function TeacherDashboard() {
         totalWorksheets: worksheetsData.length,
         totalGroups: groupsData.length,
         totalStudents: studentSet.size,
-        pendingSubmissions: 0, // Would fetch from API
+        pendingSubmissions: 0,
       });
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -64,7 +88,7 @@ export default function TeacherDashboard() {
 
   const handleDeleteWorksheet = async (id) => {
     if (!confirm('Are you sure you want to delete this worksheet?')) return;
-    
+
     try {
       await worksheetAPI.delete(id);
       setWorksheets(worksheets.filter(w => w.id !== id));
@@ -77,7 +101,7 @@ export default function TeacherDashboard() {
   const handleTogglePublish = async (id) => {
     try {
       await worksheetAPI.togglePublish(id);
-      setWorksheets(worksheets.map(w => 
+      setWorksheets(worksheets.map(w =>
         w.id === id ? { ...w, isPublished: !w.isPublished } : w
       ));
     } catch (error) {
@@ -85,7 +109,7 @@ export default function TeacherDashboard() {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="text-center">
@@ -361,7 +385,7 @@ function WorksheetRow({ worksheet, onDelete, onTogglePublish }) {
 
 function GroupCard({ group }) {
   const memberCount = group.members?.length || 0;
-  
+
   return (
     <Link href={`/groups/${group.id}`}>
       <div className="card-interactive h-full">
@@ -371,17 +395,17 @@ function GroupCard({ group }) {
           </div>
           <span className="badge badge-info">{memberCount} students</span>
         </div>
-        
+
         <h4 className="text-xl font-display font-bold text-neutral-900 mb-2">
           {group.name}
         </h4>
-        
+
         {group.description && (
           <p className="text-neutral-600 text-sm mb-4 line-clamp-2">
             {group.description}
           </p>
         )}
-        
+
         <div className="flex items-center gap-4 text-sm text-neutral-500">
           {group.subject && <span>{group.subject}</span>}
           {group.gradeLevel && <span>{group.gradeLevel}</span>}

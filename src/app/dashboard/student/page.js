@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { groupAPI, assignmentAPI, submissionAPI } from '@/lib/api';
-import { BookOpen, CheckCircle, Clock, Star, TrendingUp, LogOut, Users } from 'lucide-react';
+import { BookOpen, CheckCircle, Clock, Star, TrendingUp, LogOut } from 'lucide-react';
 import Link from 'next/link';
 
 export default function StudentDashboard() {
-  const { user, logout } = useAuth();
+  const { user, logout, loading: authLoading } = useAuth();
   const [worksheets, setWorksheets] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [stats, setStats] = useState({
@@ -18,16 +18,21 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // BUG FIX: Same race condition as teacher dashboard — must wait for
+    // AuthContext to finish its own checkAuth() before acting on user state.
+    // Without this guard, the page spinner never clears if the user arrives
+    // while authLoading is still true (common on first load / hard refresh).
+    if (authLoading) return;
+
     if (user) {
       fetchData();
+    } else {
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   const fetchData = async () => {
     try {
-      // ✅ FIX: Fetch the student's groups first, then get assigned worksheets
-      // Instead of fetching ALL public worksheets (which showed unrelated content),
-      // we now only show worksheets assigned to the student's groups.
       const [groupsRes, submissionsRes] = await Promise.all([
         groupAPI.getAll(),
         submissionAPI.getByStudent(user.id),
@@ -41,7 +46,7 @@ export default function StudentDashboard() {
         groups.map(group =>
           assignmentAPI.getGroupAssignments(group.id)
             .then(res => res.data.data.assignments || [])
-            .catch(() => []) // skip groups that fail silently
+            .catch(() => [])
         )
       );
 
@@ -59,7 +64,6 @@ export default function StudentDashboard() {
       setWorksheets(uniqueWorksheets);
       setSubmissions(submissionsData);
 
-      // Calculate stats
       const completedCount = submissionsData.length;
       const totalScore = submissionsData.reduce((sum, s) => sum + (s.score || 0), 0);
       const avgScore = completedCount > 0 ? totalScore / completedCount : 0;
@@ -84,7 +88,7 @@ export default function StudentDashboard() {
     return { status: 'available' };
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="text-center">
@@ -158,7 +162,7 @@ export default function StudentDashboard() {
           <h3 className="text-2xl font-display font-bold text-neutral-900 mb-6">
             Your Worksheets
           </h3>
-          
+
           {worksheets.length === 0 ? (
             <div className="card text-center py-12">
               <BookOpen className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
@@ -206,8 +210,8 @@ function WorksheetCard({ worksheet, status }) {
       <div className="card-interactive h-full">
         <div className="flex items-start justify-between mb-4">
           <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
-            status.status === 'completed' 
-              ? 'bg-green-100 text-green-800' 
+            status.status === 'completed'
+              ? 'bg-green-100 text-green-800'
               : 'bg-primary-100 text-primary-800'
           }`}>
             {status.status === 'completed' ? 'Completed' : 'Available'}
@@ -219,17 +223,17 @@ function WorksheetCard({ worksheet, status }) {
             </div>
           )}
         </div>
-        
+
         <h4 className="text-xl font-display font-bold text-neutral-900 mb-2">
           {worksheet.title}
         </h4>
-        
+
         {worksheet.description && (
           <p className="text-neutral-600 text-sm mb-4 line-clamp-2">
             {worksheet.description}
           </p>
         )}
-        
+
         <div className="flex items-center gap-4 text-sm text-neutral-500">
           {worksheet.subject && (
             <span className="flex items-center gap-1">

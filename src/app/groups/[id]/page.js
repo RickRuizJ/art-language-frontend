@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { groupAPI, worksheetAPI, assignmentAPI } from '@/lib/api';
+import { groupAPI, assignmentAPI } from '@/lib/api';
 import Link from 'next/link';
 import { ArrowLeft, Users, BookOpen, Plus, Trash2, UserMinus, Copy, Check } from 'lucide-react';
 import AssignWorksheetModal from '@/components/AssignWorksheetModal';
@@ -12,22 +12,22 @@ export default function GroupDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
-  
+
   const [group, setGroup] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('students');
-  
+
   // Add Students Modal state
   const [showAddModal, setShowAddModal] = useState(false);
   const [availableStudents, setAvailableStudents] = useState([]);
   const [selectedStudents, setSelectedStudents] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [modalLoading, setModalLoading] = useState(false);
-  
+
   // Copy join code state
   const [copied, setCopied] = useState(false);
-  
+
   // Assignment Modal state
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignments, setAssignments] = useState([]);
@@ -39,14 +39,16 @@ export default function GroupDetailPage() {
     }
   }, [params.id]);
 
+  // BUG FIX 1: fetchGroup was calling groupAPI.getAll() and filtering client-side.
+  // This is fragile (if the group isn't in the first page of results it fails)
+  // and wasteful. groupAPI.getOne(id) exists and is the correct call here.
   const fetchGroup = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await groupAPI.getAll();
-      const groups = response.data.data.groups;
-      const foundGroup = groups.find(g => g.id === params.id);
+      const response = await groupAPI.getOne(params.id);
+      const foundGroup = response.data.data.group;
 
       if (!foundGroup) {
         setError('Group not found');
@@ -62,16 +64,29 @@ export default function GroupDetailPage() {
     }
   };
 
+  // BUG FIX 2: fetchAssignments was called in the useEffect and in
+  // handleRemoveAssignment but was never defined anywhere in this file.
+  // This crashes the page with "fetchAssignments is not defined" the moment
+  // the component mounts, which is why the group detail page never loaded.
+  const fetchAssignments = async () => {
+    try {
+      const response = await assignmentAPI.getGroupAssignments(params.id);
+      setAssignments(response.data.data.assignments || []);
+    } catch (err) {
+      console.error('Error fetching assignments:', err);
+      // Non-fatal: don't block the page if assignments fail to load
+    }
+  };
+
   const fetchAvailableStudents = async () => {
     try {
       setModalLoading(true);
       const response = await groupAPI.getAvailableStudents();
       const allStudents = response.data.data.students;
-      
-      // Filter out students already in the group
+
       const currentMemberIds = group.members.map(m => m.studentId);
       const available = allStudents.filter(s => !currentMemberIds.includes(s.id));
-      
+
       setAvailableStudents(available);
     } catch (err) {
       console.error('Error fetching students:', err);
@@ -89,7 +104,7 @@ export default function GroupDetailPage() {
   };
 
   const handleToggleStudent = (studentId) => {
-    setSelectedStudents(prev => 
+    setSelectedStudents(prev =>
       prev.includes(studentId)
         ? prev.filter(id => id !== studentId)
         : [...prev, studentId]
@@ -102,15 +117,13 @@ export default function GroupDetailPage() {
     try {
       setModalLoading(true);
       await groupAPI.addStudents(params.id, selectedStudents);
-      
-      // Refresh group data
+
       await fetchGroup();
-      
-      // Close modal and reset
+
       setShowAddModal(false);
       setSelectedStudents([]);
       setSearchQuery('');
-      
+
       alert(`Successfully added ${selectedStudents.length} student(s)`);
     } catch (err) {
       console.error('Error adding students:', err);
@@ -124,16 +137,15 @@ export default function GroupDetailPage() {
     if (!confirm('Are you sure you want to remove this assignment from the group?')) {
       return;
     }
-    
+
     try {
       await assignmentAPI.remove(params.id, assignmentId);
-      fetchAssignments(); // Refresh list
+      fetchAssignments();
     } catch (err) {
       console.error('Error removing assignment:', err);
       alert('Failed to remove assignment. Please try again.');
     }
   };
-
 
   const handleDeleteGroup = async () => {
     if (!confirm('Are you sure you want to delete this group? This cannot be undone.')) return;
@@ -159,14 +171,13 @@ export default function GroupDetailPage() {
 
   const handleCopyJoinCode = () => {
     if (!group?.joinCode) return;
-    
+
     navigator.clipboard.writeText(group.joinCode);
     setCopied(true);
-    
+
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Filter students based on search
   const filteredStudents = availableStudents.filter(student => {
     const searchLower = searchQuery.toLowerCase();
     return (
@@ -247,12 +258,12 @@ export default function GroupDetailPage() {
             </div>
 
             {isOwner && (
-              <button 
-  onClick={() => setShowAssignModal(true)}
-  className="btn btn-primary"
->
-  Assign Worksheet
-</button>
+              <button
+                onClick={() => setShowAssignModal(true)}
+                className="btn btn-primary"
+              >
+                Assign Worksheet
+              </button>
             )}
           </div>
         </div>
@@ -311,11 +322,12 @@ export default function GroupDetailPage() {
             </div>
           </div>
 
+          {/* BUG FIX 3: Worksheets stat was hardcoded to 0. Now uses assignments.length. */}
           <div className="bg-white rounded-xl p-6 shadow-soft">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-neutral-600">Worksheets</p>
-                <p className="text-3xl font-bold text-neutral-900 mt-1">0</p>
+                <p className="text-3xl font-bold text-neutral-900 mt-1">{assignments.length}</p>
               </div>
               <div className="w-12 h-12 bg-secondary-100 rounded-xl flex items-center justify-center">
                 <BookOpen className="w-6 h-6 text-secondary-600" />
@@ -370,7 +382,7 @@ export default function GroupDetailPage() {
             <div className="p-6 border-b border-neutral-200 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-neutral-900">Students</h2>
               {isOwner && (
-                <button 
+                <button
                   onClick={handleOpenAddModal}
                   className="btn btn-primary"
                 >
@@ -403,7 +415,7 @@ export default function GroupDetailPage() {
                         <p className="text-sm text-neutral-600">{member.student?.email}</p>
                       </div>
                     </div>
-                    
+
                     {isOwner && (
                       <button
                         onClick={() => handleRemoveStudent(member.studentId)}
@@ -432,7 +444,6 @@ export default function GroupDetailPage() {
                 </button>
               )}
             </div>
-
 
             {assignments.length === 0 ? (
               <div className="p-12 text-center">
@@ -503,7 +514,6 @@ export default function GroupDetailPage() {
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
-            {/* Modal Header */}
             <div className="p-6 border-b border-neutral-200">
               <h3 className="text-xl font-bold text-neutral-900">Add Students to {group.name}</h3>
               <p className="text-sm text-neutral-600 mt-1">
@@ -511,7 +521,6 @@ export default function GroupDetailPage() {
               </p>
             </div>
 
-            {/* Search */}
             <div className="p-6 border-b border-neutral-200">
               <input
                 type="text"
@@ -527,7 +536,6 @@ export default function GroupDetailPage() {
               )}
             </div>
 
-            {/* Student List */}
             <div className="flex-1 overflow-y-auto p-6">
               {modalLoading ? (
                 <div className="text-center py-12">
@@ -569,7 +577,6 @@ export default function GroupDetailPage() {
               )}
             </div>
 
-            {/* Modal Footer */}
             <div className="p-6 border-t border-neutral-200 flex gap-3">
               <button
                 onClick={() => setShowAddModal(false)}
@@ -590,7 +597,6 @@ export default function GroupDetailPage() {
         </div>
       )}
 
-
       {/* Assign Worksheet Modal */}
       {showAssignModal && (
         <AssignWorksheetModal
@@ -603,7 +609,6 @@ export default function GroupDetailPage() {
           }}
         />
       )}
-
     </div>
   );
 }

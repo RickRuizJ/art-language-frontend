@@ -11,42 +11,45 @@ const api = axios.create({
 });
 
 // ─── Request interceptor ──────────────────────────────────────────────────────
-// Two jobs:
-//   1. Attach the JWT bearer token.
-//   2. When the payload is a FormData instance (file upload), DELETE the
-//      hard-coded "application/json" Content-Type so that axios can set
-//      "multipart/form-data; boundary=…" automatically.  If that header stays,
-//      the browser sends the request as JSON, Express's json() parser eats the
-//      stream, and Multer never sees the file.
+// BUG FIX: The original code called localStorage.getItem('token') without a
+// typeof window guard. Next.js executes module-level and interceptor code on
+// the server during SSR where localStorage is undefined. This throws a
+// ReferenceError that silently kills the interceptor registration entirely.
+// Result: no request — not even client-side ones after hydration — ever gets
+// an Authorization header attached, so every protected API call returns 401.
 api.interceptors.request.use(
   (config) => {
-    // 1. Auth token
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
 
-    // 2. Let axios auto-set Content-Type for FormData
+    // Let axios auto-set Content-Type for FormData (file uploads)
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type'];
     }
 
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Response interceptor to handle errors
+// ─── Response interceptor ─────────────────────────────────────────────────────
+// BUG FIX: Same SSR guard needed here. If this interceptor throws on the
+// server, 401 responses are never caught client-side — the app hangs on the
+// loading spinner instead of redirecting to /login.
+// Additional fix: skip the redirect if already on a public page to avoid
+// infinite redirect loops on /login itself.
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Unauthorized - clear token and redirect to login
+    if (error.response?.status === 401 && typeof window !== 'undefined') {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      if (typeof window !== 'undefined') {
+      const publicPaths = ['/login', '/register', '/'];
+      if (!publicPaths.includes(window.location.pathname)) {
         window.location.href = '/login';
       }
     }
@@ -98,12 +101,12 @@ export const groupAPI = {
 
 // Assignment API
 export const assignmentAPI = {
-  assign: (groupId, data) => 
+  assign: (groupId, data) =>
     api.post(`/groups/${groupId}/assignments`, data),
-  getGroupAssignments: (groupId) => 
+  getGroupAssignments: (groupId) =>
     api.get(`/groups/${groupId}/assignments`),
-  remove: (groupId, assignmentId) => 
-    api.delete(`/groups/${groupId}/assignments/${assignmentId}`)
+  remove: (groupId, assignmentId) =>
+    api.delete(`/groups/${groupId}/assignments/${assignmentId}`),
 };
 
 // User API
