@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { worksheetAPI, submissionAPI } from '@/lib/api';
-import { BookOpen, CheckCircle, Clock, Star, TrendingUp, LogOut } from 'lucide-react';
+import { groupAPI, assignmentAPI, submissionAPI } from '@/lib/api';
+import { BookOpen, CheckCircle, Clock, Star, TrendingUp, LogOut, Users } from 'lucide-react';
 import Link from 'next/link';
 
 export default function StudentDashboard() {
@@ -25,15 +25,38 @@ export default function StudentDashboard() {
 
   const fetchData = async () => {
     try {
-      const [worksheetsRes, submissionsRes] = await Promise.all([
-        worksheetAPI.getAll(),
+      // ✅ FIX: Fetch the student's groups first, then get assigned worksheets
+      // Instead of fetching ALL public worksheets (which showed unrelated content),
+      // we now only show worksheets assigned to the student's groups.
+      const [groupsRes, submissionsRes] = await Promise.all([
+        groupAPI.getAll(),
         submissionAPI.getByStudent(user.id),
       ]);
 
-      const worksheetsData = worksheetsRes.data.data.worksheets;
-      const submissionsData = submissionsRes.data.data.submissions;
+      const groups = groupsRes.data.data.groups || [];
+      const submissionsData = submissionsRes.data.data.submissions || [];
 
-      setWorksheets(worksheetsData);
+      // Fetch assignments for each group the student belongs to
+      const assignmentsByGroup = await Promise.all(
+        groups.map(group =>
+          assignmentAPI.getGroupAssignments(group.id)
+            .then(res => res.data.data.assignments || [])
+            .catch(() => []) // skip groups that fail silently
+        )
+      );
+
+      // Flatten and deduplicate worksheets across all groups
+      const allAssignments = assignmentsByGroup.flat();
+      const seenIds = new Set();
+      const uniqueWorksheets = [];
+      for (const assignment of allAssignments) {
+        if (assignment.worksheet && !seenIds.has(assignment.worksheet.id)) {
+          seenIds.add(assignment.worksheet.id);
+          uniqueWorksheets.push(assignment.worksheet);
+        }
+      }
+
+      setWorksheets(uniqueWorksheets);
       setSubmissions(submissionsData);
 
       // Calculate stats
@@ -42,7 +65,7 @@ export default function StudentDashboard() {
       const avgScore = completedCount > 0 ? totalScore / completedCount : 0;
 
       setStats({
-        total: worksheetsData.length,
+        total: uniqueWorksheets.length,
         completed: completedCount,
         avgScore: Math.round(avgScore),
       });
@@ -112,7 +135,7 @@ export default function StudentDashboard() {
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           <StatsCard
             icon={<BookOpen className="w-6 h-6" />}
-            title="Total Worksheets"
+            title="Assigned Worksheets"
             value={stats.total}
             color="bg-primary-100 text-primary-600"
           />
