@@ -10,14 +10,18 @@ import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 export default function EditWorksheetPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
-  
+  // FIX: Same authLoading race condition as all other data-fetching pages.
+  // Without waiting for AuthContext to resolve, the fetch fires with no token
+  // attached, returns 401, and the interceptor redirects to /login before
+  // the teacher can edit anything.
+  const { user, loading: authLoading } = useAuth();
+
   const [worksheet, setWorksheet] = useState(null);
   const [workbooks, setWorkbooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -29,18 +33,20 @@ export default function EditWorksheetPage() {
   });
 
   useEffect(() => {
+    if (authLoading) return;
+
     if (params.id) {
       fetchWorksheet();
       fetchWorkbooks();
     }
-  }, [params.id]);
+  }, [params.id, authLoading]);
 
   const fetchWorksheet = async () => {
     try {
       setLoading(true);
       const response = await worksheetAPI.getOne(params.id);
       const ws = response.data.data.worksheet;
-      
+
       setWorksheet(ws);
       setFormData({
         title: ws.title || '',
@@ -70,11 +76,11 @@ export default function EditWorksheetPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       setSaving(true);
       await worksheetAPI.update(params.id, formData);
-      
+
       alert('Worksheet updated successfully!');
       router.push(`/worksheets/${params.id}`);
     } catch (err) {
@@ -90,7 +96,7 @@ export default function EditWorksheetPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="text-center">
@@ -123,7 +129,6 @@ export default function EditWorksheetPage() {
     return null;
   }
 
-  // Check if user owns this worksheet
   const isOwner = worksheet.createdBy === user?.id;
 
   if (!isOwner && user?.role !== 'admin') {
@@ -151,7 +156,7 @@ export default function EditWorksheetPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Link 
+              <Link
                 href={`/worksheets/${params.id}`}
                 className="btn btn-ghost"
               >

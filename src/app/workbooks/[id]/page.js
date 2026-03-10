@@ -3,25 +3,30 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { workbookAPI, worksheetAPI } from '@/lib/api';
+import { workbookAPI } from '@/lib/api';
 import Link from 'next/link';
 import { ArrowLeft, BookOpen, Plus, Trash2, Eye, Edit } from 'lucide-react';
 
 export default function WorkbookDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
-  
+  // FIX: Same authLoading race condition. The workbook API route requires auth.
+  // Without waiting for AuthContext, the fetch fires unauthenticated, gets 401,
+  // and the interceptor redirects to /login before the page renders.
+  const { user, loading: authLoading } = useAuth();
+
   const [workbook, setWorkbook] = useState(null);
   const [worksheets, setWorksheets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (authLoading) return;
+
     if (params.id) {
       fetchWorkbook();
     }
-  }, [params.id]);
+  }, [params.id, authLoading]);
 
   const fetchWorkbook = async () => {
     try {
@@ -32,11 +37,8 @@ export default function WorkbookDetailPage() {
       const workbookData = response.data.data.workbook;
       setWorkbook(workbookData);
 
-      // TODO: Backend should return worksheets with the workbook
-      // For now, fetch all worksheets and filter later
-      // In a real implementation, GET /api/workbooks/:id should return associated worksheets
-      
-      // Placeholder: Empty worksheets for now
+      // TODO: Backend should return worksheets with the workbook.
+      // GET /api/workbooks/:id should include associated worksheets.
       setWorksheets([]);
     } catch (err) {
       console.error('Error fetching workbook:', err);
@@ -57,7 +59,7 @@ export default function WorkbookDetailPage() {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="text-center">
@@ -257,7 +259,7 @@ export default function WorkbookDetailPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     <Link
                       href={`/worksheets/${worksheet.id}`}

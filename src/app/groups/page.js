@@ -5,21 +5,31 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { groupAPI } from '@/lib/api';
 import Link from 'next/link';
-import { Users, Plus, Loader2, AlertCircle, ArrowRight, BookOpen } from 'lucide-react';
+import { Users, Plus, Loader2, AlertCircle, ArrowRight } from 'lucide-react';
 
 export default function GroupsPage() {
   const router = useRouter();
-  const { user } = useAuth();
-  
+  // FIX: Destructure `loading: authLoading` so we know when AuthContext has
+  // finished its own token check. Without this, the page's useEffect runs
+  // with user=null on first render and skips fetchGroups() entirely — the
+  // local loading spinner never clears and the page hangs forever.
+  const { user, loading: authLoading } = useAuth();
+
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // Wait for AuthContext to finish resolving before acting on user state.
+    if (authLoading) return;
+
     if (user) {
       fetchGroups();
+    } else {
+      // Auth resolved with no user — clear spinner; api.js interceptor redirects.
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   const fetchGroups = async () => {
     try {
@@ -35,14 +45,14 @@ export default function GroupsPage() {
     }
   };
 
-  // Redirect students to dashboard
+  // Redirect students to their dashboard
   useEffect(() => {
-    if (user && user.role === 'student') {
+    if (!authLoading && user && user.role === 'student') {
       router.push('/dashboard/student');
     }
-  }, [user, router]);
+  }, [user, authLoading, router]);
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="text-center">
@@ -55,7 +65,7 @@ export default function GroupsPage() {
 
   // Only teachers and admins can access this page
   if (user && user.role === 'student') {
-    return null; // Will redirect via useEffect
+    return null; // Will redirect via useEffect above
   }
 
   return (
@@ -103,7 +113,7 @@ export default function GroupsPage() {
         )}
 
         {/* Empty State */}
-        {!loading && groups.length === 0 && (
+        {groups.length === 0 && (
           <div className="card text-center py-12">
             <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Users className="w-8 h-8 text-primary-600" />
@@ -112,9 +122,9 @@ export default function GroupsPage() {
               No groups yet
             </h3>
             <p className="text-neutral-500 mb-6 max-w-md mx-auto">
-              {user?.role === 'teacher' 
-                ? "Create your first group to organize students and assign worksheets"
-                : "No groups available"}
+              {user?.role === 'teacher'
+                ? 'Create your first group to organize students and assign worksheets'
+                : 'No groups available'}
             </p>
             {user?.role === 'teacher' && (
               <Link
@@ -129,7 +139,7 @@ export default function GroupsPage() {
         )}
 
         {/* Groups Grid */}
-        {!loading && groups.length > 0 && (
+        {groups.length > 0 && (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {groups.map((group) => (
               <GroupCard key={group.id} group={group} userRole={user?.role} />
@@ -143,7 +153,7 @@ export default function GroupsPage() {
 
 function GroupCard({ group, userRole }) {
   const memberCount = group.members?.length || 0;
-  const teacherName = group.teacher 
+  const teacherName = group.teacher
     ? `${group.teacher.firstName} ${group.teacher.lastName}`
     : 'Unknown';
 
@@ -159,12 +169,12 @@ function GroupCard({ group, userRole }) {
             {memberCount} {memberCount === 1 ? 'student' : 'students'}
           </div>
         </div>
-        
+
         {/* Group Name */}
         <h3 className="text-xl font-display font-bold text-neutral-900 mb-2">
           {group.name}
         </h3>
-        
+
         {/* Description */}
         {group.description && (
           <p className="text-neutral-600 text-sm mb-4 line-clamp-2">
@@ -181,7 +191,7 @@ function GroupCard({ group, userRole }) {
             </p>
           </div>
         )}
-        
+
         {/* Footer */}
         <div className="flex items-center justify-between pt-4 border-t border-neutral-200">
           <div className="text-sm text-neutral-500">

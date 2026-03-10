@@ -10,34 +10,41 @@ import { ArrowLeft, Edit, Trash2, Eye, EyeOff, Download } from 'lucide-react';
 export default function WorksheetDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  // FIX: This page fetches a protected API route on mount via params.id.
+  // The original useEffect fired immediately on mount regardless of auth state.
+  // On a hard reload, AuthContext is still resolving (loading=true, user=null)
+  // when the effect runs — the axios interceptor has no token yet, the request
+  // returns 401, and the response interceptor redirects to /login before the
+  // user even sees the page. By waiting for authLoading to clear first, we
+  // ensure the token is attached before the fetch goes out.
+  const { user, loading: authLoading } = useAuth();
   const [worksheet, setWorksheet] = useState(null);
   const [fileData, setFileData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // Don't fire until AuthContext has finished its token check.
+    if (authLoading) return;
+
     if (params.id) {
       fetchWorksheet();
     }
-  }, [params.id]);
+  }, [params.id, authLoading]);
 
   const fetchWorksheet = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch worksheet data
       const response = await worksheetAPI.getOne(params.id);
       const worksheetData = response.data.data.worksheet;
       setWorksheet(worksheetData);
 
       // If it has a file (PDF/image), fetch the base64 data
-      // Check if this is a file upload (no google_embed question)
       const hasGoogleEmbed = worksheetData.questions?.some(q => q.type === 'google_embed');
-      
+
       if (!hasGoogleEmbed) {
-        // It's a file upload, fetch the file
         try {
           const fileResponse = await worksheetAPI.getFile(params.id);
           setFileData(fileResponse.data.data);
@@ -73,7 +80,7 @@ export default function WorksheetDetailPage() {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="text-center">
@@ -110,7 +117,6 @@ export default function WorksheetDetailPage() {
     );
   }
 
-  // Check if this is a Google embed
   const googleEmbed = worksheet.questions?.find(q => q.type === 'google_embed');
   const isTeacher = user?.role === 'teacher';
   const isOwner = worksheet.createdBy === user?.id;
@@ -122,7 +128,7 @@ export default function WorksheetDetailPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Link 
+              <Link
                 href={isTeacher ? '/dashboard/teacher' : '/dashboard/student'}
                 className="btn btn-ghost"
               >
@@ -194,8 +200,8 @@ export default function WorksheetDetailPage() {
             </span>
           )}
           <span className={`px-3 py-1 rounded-full text-sm ${
-            worksheet.isPublished 
-              ? 'bg-green-100 text-green-700' 
+            worksheet.isPublished
+              ? 'bg-green-100 text-green-700'
               : 'bg-yellow-100 text-yellow-700'
           }`}>
             {worksheet.isPublished ? 'Published' : 'Draft'}
