@@ -11,12 +11,6 @@ const api = axios.create({
 });
 
 // ─── Request interceptor ──────────────────────────────────────────────────────
-// BUG FIX: The original code called localStorage.getItem('token') without a
-// typeof window guard. Next.js executes module-level and interceptor code on
-// the server during SSR where localStorage is undefined. This throws a
-// ReferenceError that silently kills the interceptor registration entirely.
-// Result: no request — not even client-side ones after hydration — ever gets
-// an Authorization header attached, so every protected API call returns 401.
 api.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
@@ -37,11 +31,6 @@ api.interceptors.request.use(
 );
 
 // ─── Response interceptor ─────────────────────────────────────────────────────
-// BUG FIX: Same SSR guard needed here. If this interceptor throws on the
-// server, 401 responses are never caught client-side — the app hangs on the
-// loading spinner instead of redirecting to /login.
-// Additional fix: skip the redirect if already on a public page to avoid
-// infinite redirect loops on /login itself.
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -57,7 +46,7 @@ api.interceptors.response.use(
   }
 );
 
-// Auth API
+// ─── Auth API ─────────────────────────────────────────────────────────────────
 export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
   register: (userData) => api.post('/auth/register', userData),
@@ -65,7 +54,7 @@ export const authAPI = {
   refreshToken: () => api.post('/auth/refresh'),
 };
 
-// Worksheet API
+// ─── Worksheet API ────────────────────────────────────────────────────────────
 export const worksheetAPI = {
   getAll: (params) => api.get('/worksheets', { params }),
   getOne: (id) => api.get(`/worksheets/${id}`),
@@ -78,7 +67,7 @@ export const worksheetAPI = {
   saveGoogleLink: (data) => api.post('/worksheets/google-link', data),
 };
 
-// Submission API
+// ─── Submission API ───────────────────────────────────────────────────────────
 export const submissionAPI = {
   submit: (data) => api.post('/submissions', data),
   getOne: (id) => api.get(`/submissions/${id}`),
@@ -87,7 +76,7 @@ export const submissionAPI = {
   grade: (id, data) => api.put(`/submissions/${id}/grade`, data),
 };
 
-// Group API
+// ─── Group API ────────────────────────────────────────────────────────────────
 export const groupAPI = {
   getAll: () => api.get('/groups'),
   getOne: (id) => api.get(`/groups/${id}`),
@@ -99,27 +88,37 @@ export const groupAPI = {
   joinWithCode: (joinCode) => api.post('/groups/join', { joinCode }),
 };
 
-// Assignment API
+// ─── Assignment API ───────────────────────────────────────────────────────────
 export const assignmentAPI = {
   assign: (groupId, data) =>
     api.post(`/groups/${groupId}/assignments`, data),
   getGroupAssignments: (groupId) =>
     api.get(`/groups/${groupId}/assignments`),
+  getStudentAssignments: (studentId) =>
+    api.get(`/students/${studentId}/assignments`),
   remove: (groupId, assignmentId) =>
     api.delete(`/groups/${groupId}/assignments/${assignmentId}`),
+  submit: (assignmentId, data) =>
+    api.put(`/assignments/${assignmentId}/submit`, data),
 };
 
-// User API
+// ─── Progress API ─────────────────────────────────────────────────────────────
+export const progressAPI = {
+  getStudentProgress: (studentId) =>
+    api.get(`/students/${studentId}/progress`),
+};
+
+// ─── User API ─────────────────────────────────────────────────────────────────
 export const userAPI = {
   getAll: (params) => api.get('/users', { params }),
 };
 
-// Material API
+// ─── Material API ─────────────────────────────────────────────────────────────
 export const materialAPI = {
   getAll: () => api.get('/materials'),
 };
 
-// Workbook API
+// ─── Workbook API ─────────────────────────────────────────────────────────────
 export const workbookAPI = {
   getAll: (params) => api.get('/workbooks', { params }),
   getOne: (id) => api.get(`/workbooks/${id}`),
