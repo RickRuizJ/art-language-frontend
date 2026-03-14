@@ -14,7 +14,7 @@ export default function HomePage() {
     if (!user) {
       router.replace('/login');
     } else if (user.role === 'student') {
-      router.replace('/dashboard/student');
+      router.replace('/dashboard/student/practice-hub');
     } else {
       router.replace('/dashboard/teacher');
     }
