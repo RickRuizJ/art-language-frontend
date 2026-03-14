@@ -30,7 +30,7 @@ export default function JoinGroupPage() {
       const response = await groupAPI.joinWithCode(joinCode.toUpperCase());
       
       alert(response.data.message || 'Successfully joined group!');
-      router.push('/dashboard/student');
+      router.push('/dashboard/student/practice-hub');
     } catch (err) {
       console.error('Join error:', err);
       setError(err.response?.data?.message || 'Invalid join code');
@@ -43,7 +43,7 @@ export default function JoinGroupPage() {
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         <Link 
-          href="/dashboard/student"
+          href="/dashboard/student/practice-hub"
           className="btn btn-ghost mb-6"
         >
           <ArrowLeft className="w-4 h-4" />

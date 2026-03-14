@@ -48,7 +48,7 @@ export default function GroupsPage() {
   // Redirect students to their dashboard
   useEffect(() => {
     if (!authLoading && user && user.role === 'student') {
-      router.push('/dashboard/student');
+      router.push('/dashboard/student/practice-hub');
     }
   }, [user, authLoading, router]);
 

@@ -129,7 +129,7 @@ export default function WorksheetDetailPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link
-                href={isTeacher ? '/dashboard/teacher' : '/dashboard/student'}
+                href={isTeacher ? '/dashboard/teacher' : '/dashboard/student/practice-hub'}
                 className="btn btn-ghost"
               >
                 <ArrowLeft className="w-5 h-5" />

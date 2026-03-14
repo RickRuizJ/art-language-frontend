@@ -110,8 +110,8 @@ export default function PracticeHub() {
         padding: '0',
       }}>
         <div style={{ maxWidth: 900, margin: '0 auto', padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Link href="/dashboard/student" style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#6b7280', textDecoration: 'none', fontWeight: 600, fontSize: 15 }}>
-            <ArrowLeft size={18} /> Back
+          <Link href="/login" style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#6b7280', textDecoration: 'none', fontWeight: 600, fontSize: 15 }}>
+            <ArrowLeft size={18} /> Home
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-1px', color: '#111' }}>Practice</span>

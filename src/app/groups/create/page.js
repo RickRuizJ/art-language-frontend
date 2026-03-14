@@ -54,7 +54,7 @@ export default function CreateGroupPage() {
 
   // Redirect non-teachers
   if (user && user.role !== 'teacher' && user.role !== 'admin') {
-    router.push('/dashboard/student');
+    router.push('/dashboard/student/practice-hub');
     return null;
   }
 
