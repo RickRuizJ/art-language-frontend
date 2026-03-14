@@ -1,699 +1,473 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import {
-  groupAPI, assignmentAPI, submissionAPI, worksheetAPI
-} from '@/lib/api';
-import {
-  BookOpen, CheckCircle, Clock, Star, TrendingUp, LogOut,
-  Users, Gamepad2, Search, Filter, ChevronRight, Flame,
-  AlertCircle, Plus, X
-} from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { ArrowLeft, Zap, BookOpen, PenTool, Headphones, Star, Lock, ChevronRight, Flame, Trophy, X, Send } from 'lucide-react';
 
-export default function StudentDashboard() {
-  const { user, logout, loading: authLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview');
-  const [loading, setLoading] = useState(true);
+const LEVELS = [
+  {
+    id: 'A1',
+    label: 'A1',
+    name: 'Beginner',
+    emoji: '🌱',
+    color: '#22c55e',
+    bg: '#f0fdf4',
+    border: '#86efac',
+    ring: '#22c55e',
+    gradient: 'from-green-400 to-emerald-500',
+    description: 'Start your journey',
+    unlocked: true,
+    xp: 240,
+    maxXp: 300,
+  },
+  {
+    id: 'A2',
+    label: 'A2',
+    name: 'Elementary',
+    emoji: '🌿',
+    color: '#16a34a',
+    bg: '#f0fdf4',
+    border: '#4ade80',
+    ring: '#16a34a',
+    gradient: 'from-emerald-500 to-teal-500',
+    description: 'Build your foundation',
+    unlocked: true,
+    xp: 120,
+    maxXp: 300,
+  },
+  {
+    id: 'B1',
+    label: 'B1',
+    name: 'Intermediate',
+    emoji: '💧',
+    color: '#3b82f6',
+    bg: '#eff6ff',
+    border: '#93c5fd',
+    ring: '#3b82f6',
+    gradient: 'from-blue-400 to-blue-600',
+    description: 'Gain real confidence',
+    unlocked: true,
+    xp: 60,
+    maxXp: 300,
+  },
+  {
+    id: 'B2',
+    label: 'B2',
+    name: 'Upper-Intermediate',
+    emoji: '🌊',
+    color: '#1d4ed8',
+    bg: '#eff6ff',
+    border: '#60a5fa',
+    ring: '#1d4ed8',
+    gradient: 'from-blue-600 to-indigo-600',
+    description: 'Express yourself freely',
+    unlocked: false,
+    xp: 0,
+    maxXp: 300,
+  },
+  {
+    id: 'C1',
+    label: 'C1',
+    name: 'Advanced',
+    emoji: '⚡',
+    color: '#7c3aed',
+    bg: '#faf5ff',
+    border: '#c4b5fd',
+    ring: '#7c3aed',
+    gradient: 'from-violet-500 to-purple-700',
+    description: 'Master English',
+    unlocked: false,
+    xp: 0,
+    maxXp: 300,
+  },
+];
 
-  // Overview data
-  const [assignments, setAssignments] = useState([]);
-  const [groups, setGroups] = useState([]);
-  const [submissions, setSubmissions] = useState([]);
+const SKILLS = [
+  { id: 'vocabulary', label: 'Vocabulary', icon: BookOpen, path: '/dashboard/student/practice/vocab-match' },
+  { id: 'grammar', label: 'Grammar', icon: PenTool, path: '/dashboard/student/practice/grammar-challenge' },
+  { id: 'spelling', label: 'Spelling', icon: Zap, path: '/dashboard/student/practice/spelling-challenge' },
+  { id: 'listening', label: 'Listening', icon: Headphones, path: '/dashboard/student/practice/listening', soon: true },
+];
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (user) {
-      fetchAll();
-    } else {
-      setLoading(false);
-    }
-  }, [user, authLoading]);
+export default function PracticeHub() {
+  const [activeLevel, setActiveLevel] = useState('A1');
+  const [alOpen, setAlOpen] = useState(false);
+  const level = LEVELS.find(l => l.id === activeLevel);
 
-  const fetchAll = async () => {
-    setLoading(true);
-    try {
-      const [groupsRes, submissionsRes] = await Promise.all([
-        groupAPI.getAll(),
-        submissionAPI.getByStudent(user.id),
-      ]);
-
-      const groupsData = groupsRes.data.data.groups || [];
-      const submissionsData = submissionsRes.data.data.submissions || [];
-
-      setGroups(groupsData);
-      setSubmissions(submissionsData);
-
-      // Fetch assignments for each group
-      const assignmentsByGroup = await Promise.all(
-        groupsData.map(group =>
-          assignmentAPI.getGroupAssignments(group.id)
-            .then(res => (res.data.data.assignments || []).map(a => ({ ...a, groupName: group.name })))
-            .catch(() => [])
-        )
-      );
-      setAssignments(assignmentsByGroup.flat());
-    } catch (err) {
-      console.error('fetchAll error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getAssignmentStatus = (worksheetId) => {
-    const sub = submissions.find(s => s.worksheetId === worksheetId || s.worksheet?.id === worksheetId);
-    if (!sub) return 'not_started';
-    if (sub.score !== null && sub.score !== undefined) return 'graded';
-    return 'submitted';
-  };
-
-  const stats = {
-    total: assignments.length,
-    completed: submissions.length,
-    avgScore: submissions.length > 0
-      ? Math.round(submissions.reduce((s, sub) => s + (sub.score || 0), 0) / submissions.length)
-      : 0,
-    groups: groups.length,
-  };
-
-  const pending = assignments.filter(a => {
-    const status = getAssignmentStatus(a.worksheet?.id);
-    return status === 'not_started';
-  });
-
-  if (authLoading || loading) {
-    return (
-      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-neutral-600">Loading your dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const tabs = [
-    { id: 'overview', label: 'Overview', icon: TrendingUp },
-    { id: 'assignments', label: 'My Assignments', icon: BookOpen },
-    { id: 'groups', label: 'My Groups', icon: Users },
-    { id: 'practice', label: 'Practice Zone', icon: Gamepad2 },
-    { id: 'library', label: 'Worksheet Library', icon: Search },
-  ];
+  const totalXp = LEVELS.reduce((s, l) => s + l.xp, 0);
+  const streak = 7;
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      {/* Header */}
-      <header className="bg-white border-b border-neutral-200 sticky top-0 z-10">
-        <div className="container-custom py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
-                <BookOpen className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-display font-bold text-neutral-900">
-                  Art & Language Campus
-                </h1>
-                <p className="text-sm text-neutral-600">Student Dashboard</p>
-              </div>
+    <>
+    <div style={{ minHeight: '100vh', background: '#fafaf9', fontFamily: "'Nunito', 'Segoe UI', sans-serif" }}>
+      {/* Top Nav */}
+      <header style={{
+        background: '#fff',
+        borderBottom: '2px solid #f3f4f6',
+        position: 'sticky',
+        top: 0,
+        zIndex: 50,
+        padding: '0',
+      }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Link href="/dashboard/student" style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#6b7280', textDecoration: 'none', fontWeight: 600, fontSize: 15 }}>
+            <ArrowLeft size={18} /> Back
+          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-1px', color: '#111' }}>Practice</span>
+            <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-1px', color: '#7c3aed' }}>Hub</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#fff7ed', borderRadius: 999, padding: '5px 12px', border: '2px solid #fed7aa' }}>
+              <Flame size={16} color="#f97316" fill="#f97316" />
+              <span style={{ fontWeight: 800, fontSize: 14, color: '#ea580c' }}>{streak}</span>
             </div>
-            <button onClick={logout} className="btn btn-ghost">
-              <LogOut className="w-5 h-5" />
-              Sign Out
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#fefce8', borderRadius: 999, padding: '5px 12px', border: '2px solid #fde68a' }}>
+              <Trophy size={16} color="#ca8a04" />
+              <span style={{ fontWeight: 800, fontSize: 14, color: '#92400e' }}>{totalXp} XP</span>
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="container-custom py-8">
-        {/* Welcome */}
-        <div className="mb-6">
-          <h2 className="text-3xl font-display font-bold text-neutral-900 mb-1">
-            Welcome back, {user?.firstName}! 👋
-          </h2>
-          <p className="text-neutral-600">Here's your learning overview</p>
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
+
+        {/* Hero */}
+        <div style={{ marginBottom: 36, textAlign: 'center' }}>
+          <h1 style={{ fontSize: 34, fontWeight: 900, color: '#111827', margin: '0 0 8px', letterSpacing: '-0.5px' }}>
+            Choose your level 🎯
+          </h1>
+          <p style={{ color: '#6b7280', fontSize: 16, margin: 0 }}>
+            Pick a CEFR level and start practicing. Your progress is saved automatically.
+          </p>
         </div>
 
-        {/* Tab nav */}
-        <div className="bg-white rounded-2xl shadow-soft p-2 mb-8 flex gap-1 overflow-x-auto">
-          {tabs.map(tab => {
-            const Icon = tab.icon;
+        {/* Level Pills Row */}
+        <div style={{ display: 'flex', gap: 10, marginBottom: 32, justifyContent: 'center', flexWrap: 'wrap' }}>
+          {LEVELS.map(lv => (
+            <button
+              key={lv.id}
+              onClick={() => lv.unlocked && setActiveLevel(lv.id)}
+              style={{
+                padding: '10px 20px',
+                borderRadius: 999,
+                border: `2.5px solid ${activeLevel === lv.id ? lv.color : lv.unlocked ? lv.border : '#e5e7eb'}`,
+                background: activeLevel === lv.id ? lv.color : lv.unlocked ? lv.bg : '#f9fafb',
+                color: activeLevel === lv.id ? '#fff' : lv.unlocked ? lv.color : '#9ca3af',
+                fontWeight: 800,
+                fontSize: 14,
+                cursor: lv.unlocked ? 'pointer' : 'not-allowed',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                transition: 'all 0.15s ease',
+                transform: activeLevel === lv.id ? 'scale(1.06)' : 'scale(1)',
+                boxShadow: activeLevel === lv.id ? `0 4px 14px ${lv.color}55` : 'none',
+              }}
+            >
+              <span>{lv.emoji}</span>
+              {lv.id}
+              {!lv.unlocked && <Lock size={12} />}
+            </button>
+          ))}
+        </div>
+
+        {/* Active Level Card */}
+        <div style={{
+          background: '#fff',
+          borderRadius: 24,
+          border: `2px solid ${level.border}`,
+          padding: 28,
+          marginBottom: 28,
+          boxShadow: `0 8px 32px ${level.color}18`,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                <span style={{ fontSize: 32 }}>{level.emoji}</span>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                    <span style={{ fontSize: 28, fontWeight: 900, color: '#111', letterSpacing: '-0.5px' }}>{level.id}</span>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: '#6b7280' }}>{level.name}</span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 14, color: '#9ca3af', fontWeight: 600 }}>{level.description}</p>
+                </div>
+              </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 22, fontWeight: 900, color: level.color }}>{level.xp}</div>
+              <div style={{ fontSize: 12, color: '#9ca3af', fontWeight: 700 }}>/ {level.maxXp} XP</div>
+            </div>
+          </div>
+
+          {/* XP Progress bar */}
+          <div style={{ background: '#f3f4f6', borderRadius: 999, height: 10, overflow: 'hidden', marginBottom: 6 }}>
+            <div style={{
+              height: '100%',
+              width: `${(level.xp / level.maxXp) * 100}%`,
+              background: `linear-gradient(90deg, ${level.color}, ${level.color}99)`,
+              borderRadius: 999,
+              transition: 'width 0.6s ease',
+            }} />
+          </div>
+          <div style={{ fontSize: 12, color: '#9ca3af', fontWeight: 600 }}>
+            {level.maxXp - level.xp} XP to next milestone
+          </div>
+        </div>
+
+        {/* Skill Cards Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 16 }}>
+          {SKILLS.map((skill) => {
+            const Icon = skill.icon;
+            const locked = !level.unlocked;
             return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm whitespace-nowrap transition-all ${
-                  activeTab === tab.id
-                    ? 'bg-primary-100 text-primary-700'
-                    : 'text-neutral-600 hover:bg-neutral-50'
-                }`}
+              <Link
+                key={skill.id}
+                href={locked || skill.soon ? '#' : `${skill.path}?level=${activeLevel}`}
+                style={{ textDecoration: 'none' }}
               >
-                <Icon className="w-4 h-4" />
-                {tab.label}
-              </button>
+                <div style={{
+                  background: '#fff',
+                  border: `2px solid ${locked || skill.soon ? '#f3f4f6' : level.border}`,
+                  borderRadius: 20,
+                  padding: '24px 20px',
+                  cursor: locked || skill.soon ? 'not-allowed' : 'pointer',
+                  opacity: locked ? 0.5 : 1,
+                  transition: 'all 0.15s ease',
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}>
+                  {skill.soon && (
+                    <div style={{
+                      position: 'absolute', top: 10, right: 10,
+                      background: '#fef3c7', color: '#92400e',
+                      fontSize: 10, fontWeight: 800, padding: '2px 8px',
+                      borderRadius: 999, border: '1.5px solid #fde68a',
+                    }}>
+                      SOON
+                    </div>
+                  )}
+                  <div style={{
+                    width: 48, height: 48, borderRadius: 14,
+                    background: locked || skill.soon ? '#f9fafb' : level.bg,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    marginBottom: 14,
+                    border: `2px solid ${locked || skill.soon ? '#e5e7eb' : level.border}`,
+                  }}>
+                    <Icon size={22} color={locked || skill.soon ? '#9ca3af' : level.color} />
+                  </div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: '#111827', marginBottom: 4 }}>{skill.label}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: level.color, fontSize: 13, fontWeight: 700 }}>
+                    {!locked && !skill.soon && (
+                      <>Practice <ChevronRight size={14} /></>
+                    )}
+                    {locked && <span style={{ color: '#9ca3af' }}>🔒 Locked</span>}
+                    {skill.soon && <span style={{ color: '#9ca3af' }}>Coming soon</span>}
+                  </div>
+                </div>
+              </Link>
             );
           })}
         </div>
 
-        {/* Tab content */}
-        {activeTab === 'overview' && (
-          <OverviewTab
-            user={user}
-            stats={stats}
-            assignments={assignments}
-            pending={pending}
-            getAssignmentStatus={getAssignmentStatus}
-            setActiveTab={setActiveTab}
-          />
-        )}
-        {activeTab === 'assignments' && (
-          <AssignmentsTab
-            assignments={assignments}
-            getAssignmentStatus={getAssignmentStatus}
-            submissions={submissions}
-          />
-        )}
-        {activeTab === 'groups' && (
-          <GroupsTab groups={groups} onRefresh={fetchAll} />
-        )}
-        {activeTab === 'practice' && <PracticeTab />}
-        {activeTab === 'library' && <LibraryTab />}
-      </div>
-    </div>
-  );
-}
-
-/* ─── Overview Tab ─── */
-function OverviewTab({ user, stats, assignments, pending, getAssignmentStatus, setActiveTab }) {
-  return (
-    <div className="space-y-8">
-      {/* Stats */}
-      <div className="grid md:grid-cols-4 gap-6">
-        <StatsCard
-          icon={<BookOpen className="w-6 h-6" />}
-          title="Assigned"
-          value={stats.total}
-          color="bg-primary-100 text-primary-600"
-          onClick={() => setActiveTab('assignments')}
-        />
-        <StatsCard
-          icon={<CheckCircle className="w-6 h-6" />}
-          title="Completed"
-          value={stats.completed}
-          color="bg-green-100 text-green-600"
-          onClick={() => setActiveTab('assignments')}
-        />
-        <StatsCard
-          icon={<TrendingUp className="w-6 h-6" />}
-          title="Avg. Score"
-          value={stats.completed > 0 ? `${stats.avgScore}%` : '—'}
-          color="bg-accent-100 text-accent-600"
-        />
-        <StatsCard
-          icon={<Users className="w-6 h-6" />}
-          title="My Groups"
-          value={stats.groups}
-          color="bg-secondary-100 text-secondary-600"
-          onClick={() => setActiveTab('groups')}
-        />
-      </div>
-
-      {/* Pending assignments */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-2xl font-display font-bold text-neutral-900">
-            Pending Assignments
-          </h3>
-          {pending.length > 0 && (
+        {/* AL Assistant teaser */}
+        <div style={{
+          marginTop: 32,
+          background: 'linear-gradient(135deg, #7c3aed11, #3b82f611)',
+          border: '2px dashed #c4b5fd',
+          borderRadius: 20,
+          padding: '20px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
+        }}>
+          <div style={{
+            width: 52, height: 52, borderRadius: 999,
+            background: 'linear-gradient(135deg, #7c3aed, #3b82f6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 22, flexShrink: 0,
+          }}>🤖</div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: '#111827' }}>Meet AL — your learning assistant</div>
+            <div style={{ fontSize: 14, color: '#6b7280', marginTop: 2 }}>
+              AL is available inside every game. Click <strong>"Ask AL"</strong> anytime you need help, explanations, or extra practice.
+            </div>
+          </div>
+          <div style={{ marginLeft: 'auto', flexShrink: 0 }}>
             <button
-              onClick={() => setActiveTab('assignments')}
-              className="text-sm text-primary-600 font-medium flex items-center gap-1 hover:gap-2 transition-all"
+              onClick={() => setAlOpen(true)}
+              style={{
+                background: 'linear-gradient(135deg, #7c3aed, #3b82f6)',
+                color: '#fff', padding: '8px 18px',
+                borderRadius: 999, fontWeight: 800, fontSize: 13,
+                border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}
             >
-              View all <ChevronRight className="w-4 h-4" />
+              <Star size={14} />
+              Chat with AL
             </button>
-          )}
-        </div>
-
-        {pending.length === 0 ? (
-          <div className="card text-center py-10">
-            <CheckCircle className="w-14 h-14 text-green-400 mx-auto mb-3" />
-            <h4 className="text-lg font-semibold text-neutral-700 mb-1">All caught up!</h4>
-            <p className="text-neutral-500 text-sm">No pending assignments right now.</p>
           </div>
-        ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {pending.slice(0, 6).map(a => (
-              <AssignmentCard
-                key={a.id}
-                assignment={a}
-                status={getAssignmentStatus(a.worksheet?.id)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Quick access */}
-      <div>
-        <h3 className="text-2xl font-display font-bold text-neutral-900 mb-4">Quick Access</h3>
-        <div className="grid md:grid-cols-3 gap-4">
-          <QuickCard
-            icon="🎮"
-            title="Practice Zone"
-            desc="Play games to improve your skills"
-            color="bg-purple-50 border-purple-200"
-            onClick={() => setActiveTab('practice')}
-          />
-          <QuickCard
-            icon="📚"
-            title="Worksheet Library"
-            desc="Browse and search all worksheets"
-            color="bg-blue-50 border-blue-200"
-            onClick={() => setActiveTab('library')}
-          />
-          <Link href="/join-group" className="block">
-            <QuickCard
-              icon="🔑"
-              title="Join a Group"
-              desc="Enter a code from your teacher"
-              color="bg-orange-50 border-orange-200"
-            />
-          </Link>
         </div>
+
       </div>
     </div>
+
+    {/* AL Chat Modal */}
+    {alOpen && <ALModal onClose={() => setAlOpen(false)} />}
+  </>
   );
 }
 
-/* ─── Assignments Tab ─── */
-function AssignmentsTab({ assignments, getAssignmentStatus, submissions }) {
-  const [filter, setFilter] = useState('all');
-
-  const filtered = assignments.filter(a => {
-    if (filter === 'all') return true;
-    return getAssignmentStatus(a.worksheet?.id) === filter;
-  });
-
-  const statusFilters = [
-    { key: 'all', label: 'All' },
-    { key: 'not_started', label: 'Not Started' },
-    { key: 'submitted', label: 'Submitted' },
-    { key: 'graded', label: 'Graded' },
-  ];
-
-  return (
-    <div>
-      <h3 className="text-2xl font-display font-bold text-neutral-900 mb-6">My Assignments</h3>
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {statusFilters.map(f => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
-              filter === f.key
-                ? 'bg-primary-600 text-white border-primary-600'
-                : 'bg-white text-neutral-600 border-neutral-200 hover:border-primary-300'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      {filtered.length === 0 ? (
-        <div className="card text-center py-12">
-          <BookOpen className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
-          <h4 className="text-xl font-semibold text-neutral-700 mb-2">No assignments found</h4>
-          <p className="text-neutral-500">
-            {filter === 'all'
-              ? 'Your teacher will assign worksheets here.'
-              : `No assignments with status "${filter}".`}
-          </p>
-        </div>
-      ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map(a => (
-            <AssignmentCard
-              key={a.id}
-              assignment={a}
-              status={getAssignmentStatus(a.worksheet?.id)}
-              showScore
-              submissions={submissions}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ─── Groups Tab ─── */
-function GroupsTab({ groups, onRefresh }) {
-  const [joinCode, setJoinCode] = useState('');
-  const [joining, setJoining] = useState(false);
-  const [joinError, setJoinError] = useState('');
-  const [joinSuccess, setJoinSuccess] = useState('');
-  const { groupAPI } = useGroupAPI();
-
-  async function handleJoin(e) {
-    e.preventDefault();
-    if (!joinCode.trim()) return;
-    setJoining(true);
-    setJoinError('');
-    setJoinSuccess('');
-    try {
-      await groupAPI.joinWithCode(joinCode.toUpperCase().trim());
-      setJoinSuccess('Successfully joined the group!');
-      setJoinCode('');
-      onRefresh();
-    } catch (err) {
-      setJoinError(err?.response?.data?.message || 'Invalid code. Please check and try again.');
-    } finally {
-      setJoining(false);
-    }
-  }
-
-  return (
-    <div>
-      <h3 className="text-2xl font-display font-bold text-neutral-900 mb-6">My Groups</h3>
-
-      {/* Join card */}
-      <div className="card mb-8 bg-gradient-to-r from-primary-50 to-secondary-50 border border-primary-100">
-        <h4 className="text-lg font-display font-bold text-neutral-900 mb-1">Join a Group</h4>
-        <p className="text-sm text-neutral-600 mb-4">
-          Enter the code your teacher shared with you
-        </p>
-        <form onSubmit={handleJoin} className="flex gap-3 max-w-md">
-          <input
-            className="input flex-1 text-center text-lg tracking-widest font-mono uppercase"
-            placeholder="ABC123"
-            value={joinCode}
-            onChange={e => setJoinCode(e.target.value.toUpperCase())}
-            maxLength={8}
-          />
-          <button className="btn btn-primary" type="submit" disabled={joining || joinCode.length < 4}>
-            {joining ? 'Joining…' : 'Join'}
-          </button>
-        </form>
-        {joinError && (
-          <p className="text-sm text-red-600 mt-2 flex items-center gap-1">
-            <AlertCircle className="w-4 h-4" /> {joinError}
-          </p>
-        )}
-        {joinSuccess && (
-          <p className="text-sm text-green-600 mt-2 flex items-center gap-1">
-            <CheckCircle className="w-4 h-4" /> {joinSuccess}
-          </p>
-        )}
-      </div>
-
-      {groups.length === 0 ? (
-        <div className="card text-center py-12">
-          <Users className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
-          <h4 className="text-xl font-semibold text-neutral-700 mb-2">No groups yet</h4>
-          <p className="text-neutral-500">Ask your teacher for a group code to get started.</p>
-        </div>
-      ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {groups.map(g => (
-            <div key={g.id} className="card">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-secondary-100 text-secondary-600 flex items-center justify-center flex-shrink-0">
-                  <Users className="w-6 h-6" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-lg font-display font-bold text-neutral-900 truncate">{g.name}</h4>
-                  {g.description && (
-                    <p className="text-sm text-neutral-500 mt-1 line-clamp-2">{g.description}</p>
-                  )}
-                  <div className="flex items-center gap-3 mt-3 text-sm text-neutral-500">
-                    <span className="badge badge-info">
-                      {g.members?.length || 0} students
-                    </span>
-                    {g.subject && <span>{g.subject}</span>}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ─── Practice Tab ─── */
-function PracticeTab() {
-  const games = [
-    {
-      href: '/dashboard/student/practice/vocab-match',
-      icon: '🃏',
-      title: 'Vocabulary Match',
-      desc: 'Match words with their definitions in a timed challenge',
-      badge: 'Fun',
-      badgeColor: 'bg-purple-100 text-purple-700',
-    },
-    {
-      href: '/dashboard/student/practice/grammar-challenge',
-      icon: '📝',
-      title: 'Grammar Challenge',
-      desc: 'Test your grammar with multiple-choice questions against the clock',
-      badge: 'Practice',
-      badgeColor: 'bg-blue-100 text-blue-700',
-    },
-    {
-      href: '/dashboard/student/practice/spelling-challenge',
-      icon: '🔤',
-      title: 'Spelling Challenge',
-      desc: 'Read the hint and spell the word correctly',
-      badge: 'Spelling',
-      badgeColor: 'bg-pink-100 text-pink-700',
-    },
-  ];
-
-  return (
-    <div>
-      <div className="mb-8">
-        <h3 className="text-2xl font-display font-bold text-neutral-900 mb-2">Practice Zone 🎮</h3>
-        <p className="text-neutral-600">No grades here — just fun ways to practice your English!</p>
-      </div>
-
-      <div className="grid md:grid-cols-3 gap-6">
-        {games.map(g => (
-          <Link key={g.href} href={g.href} className="block">
-            <div className="card-interactive h-full flex flex-col">
-              <div className="text-5xl mb-4">{g.icon}</div>
-              <div className="flex items-center gap-2 mb-3">
-                <h4 className="text-xl font-display font-bold text-neutral-900">{g.title}</h4>
-                <span className={`badge text-xs ${g.badgeColor}`}>{g.badge}</span>
-              </div>
-              <p className="text-neutral-600 text-sm flex-1">{g.desc}</p>
-              <div className="mt-4 flex items-center gap-1 text-primary-600 font-medium text-sm">
-                Play now <ChevronRight className="w-4 h-4" />
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ─── Library Tab ─── */
-function LibraryTab() {
-  const [search, setSearch] = useState('');
-  const [level, setLevel] = useState('');
-  const [topic, setTopic] = useState('');
-  const [skill, setSkill] = useState('');
-  const [worksheets, setWorksheets] = useState([]);
+/* ─── AL Chat Modal ─── */
+function ALModal({ onClose }) {
+  const [messages, setMessages] = useState([
+    { role: 'assistant', text: "Hi! I'm AL, your English learning assistant 🤖\n\nI can help you with grammar, vocabulary, spelling, or anything you're practicing. What would you like to work on?" }
+  ]);
+  const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
+  const bottomRef = useRef(null);
 
-  async function handleSearch(e) {
-    e?.preventDefault();
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  async function sendMessage() {
+    if (!input.trim() || loading) return;
+    const userMsg = input.trim();
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setLoading(true);
-    setSearched(true);
     try {
-      const res = await worksheetAPI.getAll({ search, level, topic, skill });
-      // Support both response shapes
-      const data = res.data.data?.worksheets || res.data.worksheets || res.data || [];
-      setWorksheets(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Library search error:', err);
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system: "You are AL, a friendly and encouraging English language learning assistant for students at Art & Language Campus. You help students with grammar, vocabulary, spelling, reading, and writing. Keep responses concise, clear, and encouraging. Use simple language appropriate for language learners. Add relevant emojis occasionally to keep it fun.",
+          messages: [
+            ...messages.filter(m => m.role !== 'assistant' || messages.indexOf(m) > 0).map(m => ({
+              role: m.role,
+              content: m.text,
+            })),
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+      const data = await res.json();
+      const reply = data.content?.[0]?.text || "Sorry, I couldn't respond. Try again!";
+      setMessages(prev => [...prev, { role: 'assistant', text: reply }]);
+    } catch {
+      setMessages(prev => [...prev, { role: 'assistant', text: "Oops! Something went wrong. Please try again 🙏" }]);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div>
-      <h3 className="text-2xl font-display font-bold text-neutral-900 mb-6">Worksheet Library 📚</h3>
-
-      {/* Search form */}
-      <form onSubmit={handleSearch} className="card mb-8">
-        <div className="grid md:grid-cols-4 gap-4 mb-4">
-          <div className="relative md:col-span-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
-            <input
-              className="input pl-10"
-              placeholder="Search by keyword…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: 'rgba(0,0,0,0.45)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 16,
+    }}
+      onClick={onClose}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#fff', borderRadius: 24, width: '100%', maxWidth: 480,
+          height: 560, display: 'flex', flexDirection: 'column',
+          boxShadow: '0 24px 64px rgba(124,58,237,0.2)',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          background: 'linear-gradient(135deg, #7c3aed, #3b82f6)',
+          padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 999, background: 'rgba(255,255,255,0.2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
+          }}>🤖</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 800, fontSize: 16, color: '#fff' }}>AL — Learning Assistant</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>AI-powered • Always here to help</div>
           </div>
-          <select className="input" value={level} onChange={e => setLevel(e.target.value)}>
-            <option value="">All Levels</option>
-            {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(l => (
-              <option key={l} value={l}>{l}</option>
-            ))}
-          </select>
-          <select className="input" value={skill} onChange={e => setSkill(e.target.value)}>
-            <option value="">All Skills</option>
-            {['grammar', 'vocabulary', 'reading', 'writing', 'listening', 'speaking'].map(s => (
-              <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex gap-4">
-          <input
-            className="input flex-1"
-            placeholder="Topic (e.g. food, travel, work)"
-            value={topic}
-            onChange={e => setTopic(e.target.value)}
-          />
-          <button className="btn btn-primary" type="submit" disabled={loading}>
-            <Search className="w-4 h-4" />
-            {loading ? 'Searching…' : 'Search'}
+          <button onClick={onClose} style={{
+            background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 999,
+            width: 32, height: 32, cursor: 'pointer', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', color: '#fff',
+          }}>
+            <X size={16} />
           </button>
         </div>
-      </form>
 
-      {loading ? (
-        <div className="text-center py-12">
-          <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-neutral-600">Searching worksheets…</p>
-        </div>
-      ) : !searched ? (
-        <div className="card text-center py-12">
-          <Search className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
-          <h4 className="text-xl font-semibold text-neutral-700 mb-2">Search the library</h4>
-          <p className="text-neutral-500">Use the filters above to find worksheets</p>
-        </div>
-      ) : worksheets.length === 0 ? (
-        <div className="card text-center py-12">
-          <BookOpen className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
-          <h4 className="text-xl font-semibold text-neutral-700 mb-2">No worksheets found</h4>
-          <p className="text-neutral-500">Try different keywords or filters</p>
-        </div>
-      ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {worksheets.map(w => (
-            <Link key={w.id || w._id} href={`/worksheets/${w.id || w._id}`}>
-              <div className="card-interactive h-full">
-                <div className="flex items-start justify-between mb-3">
-                  {w.level && (
-                    <span className="badge badge-info">{w.level}</span>
-                  )}
-                  {w.skill && (
-                    <span className="badge bg-primary-100 text-primary-700">{w.skill}</span>
-                  )}
-                </div>
-                <h4 className="text-lg font-display font-bold text-neutral-900 mb-2">{w.title}</h4>
-                {w.description && (
-                  <p className="text-sm text-neutral-500 mb-3 line-clamp-2">{w.description}</p>
-                )}
-                <div className="flex items-center gap-3 text-xs text-neutral-400">
-                  {w.topic && <span>📌 {w.topic}</span>}
-                  <span>📋 {w.questions?.length || 0} questions</span>
-                </div>
+        {/* Messages */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {messages.map((m, i) => (
+            <div key={i} style={{
+              display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start',
+            }}>
+              <div style={{
+                maxWidth: '80%',
+                background: m.role === 'user' ? 'linear-gradient(135deg, #7c3aed, #3b82f6)' : '#f3f4f6',
+                color: m.role === 'user' ? '#fff' : '#111827',
+                borderRadius: m.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                padding: '10px 14px', fontSize: 14, lineHeight: 1.5, fontWeight: 500,
+                whiteSpace: 'pre-wrap',
+              }}>
+                {m.text}
               </div>
-            </Link>
+            </div>
           ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ─── Shared sub-components ─── */
-
-function StatsCard({ icon, title, value, color, onClick }) {
-  return (
-    <div
-      className={`card ${onClick ? 'cursor-pointer hover:-translate-y-1 transition-transform' : ''}`}
-      onClick={onClick}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <div className={`w-12 h-12 rounded-xl ${color} flex items-center justify-center`}>
-          {icon}
-        </div>
-      </div>
-      <p className="text-neutral-600 text-sm mb-1">{title}</p>
-      <p className="text-3xl font-display font-bold text-neutral-900">{value}</p>
-    </div>
-  );
-}
-
-const STATUS_CONFIG = {
-  not_started: { label: 'Not Started', cls: 'bg-neutral-100 text-neutral-600' },
-  submitted: { label: 'Submitted', cls: 'badge-success' },
-  graded: { label: 'Graded', cls: 'bg-accent-100 text-accent-700' },
-};
-
-function AssignmentCard({ assignment: a, status, showScore, submissions }) {
-  const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.not_started;
-  const sub = submissions?.find(s => s.worksheetId === a.worksheet?.id || s.worksheet?.id === a.worksheet?.id);
-  const dueDate = a.dueDate ? new Date(a.dueDate) : null;
-  const isOverdue = dueDate && dueDate < new Date() && status === 'not_started';
-
-  return (
-    <Link href={`/worksheets/${a.worksheet?.id}`}>
-      <div className="card-interactive h-full">
-        <div className="flex items-start justify-between mb-3">
-          <span className={`badge ${cfg.cls}`}>{cfg.label}</span>
-          {showScore && sub?.score != null && (
-            <span className="flex items-center gap-1 text-accent-600 text-sm font-semibold">
-              <Star className="w-4 h-4 fill-current" /> {sub.score}%
-            </span>
+          {loading && (
+            <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+              <div style={{
+                background: '#f3f4f6', borderRadius: '18px 18px 18px 4px',
+                padding: '10px 16px', fontSize: 20, letterSpacing: 2,
+              }}>
+                <span style={{ animation: 'pulse 1s infinite' }}>•••</span>
+              </div>
+            </div>
           )}
+          <div ref={bottomRef} />
         </div>
-        <h4 className="text-lg font-display font-bold text-neutral-900 mb-2">
-          {a.worksheet?.title || 'Untitled'}
-        </h4>
-        {a.groupName && (
-          <p className="text-xs text-neutral-500 mb-2">
-            <Users className="w-3 h-3 inline mr-1" />{a.groupName}
-          </p>
-        )}
-        {dueDate && (
-          <p className={`text-xs flex items-center gap-1 ${isOverdue ? 'text-red-500' : 'text-neutral-500'}`}>
-            {isOverdue ? <AlertCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-            {isOverdue ? 'Overdue: ' : 'Due: '}
-            {dueDate.toLocaleDateString()}
-          </p>
-        )}
-      </div>
-    </Link>
-  );
-}
 
-function QuickCard({ icon, title, desc, color, onClick }) {
-  return (
-    <div
-      className={`card border-2 cursor-pointer hover:-translate-y-1 transition-all ${color}`}
-      onClick={onClick}
-    >
-      <div className="text-3xl mb-3">{icon}</div>
-      <h4 className="font-display font-bold text-neutral-900 mb-1">{title}</h4>
-      <p className="text-sm text-neutral-600">{desc}</p>
+        {/* Input */}
+        <div style={{
+          padding: '12px 16px', borderTop: '1px solid #f3f4f6',
+          display: 'flex', gap: 8, alignItems: 'center',
+        }}>
+          <input
+            style={{
+              flex: 1, border: '2px solid #e5e7eb', borderRadius: 999,
+              padding: '10px 16px', fontSize: 14, outline: 'none',
+              fontFamily: 'inherit',
+            }}
+            placeholder="Ask AL anything…"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && sendMessage()}
+            disabled={loading}
+          />
+          <button
+            onClick={sendMessage}
+            disabled={loading || !input.trim()}
+            style={{
+              width: 40, height: 40, borderRadius: 999, border: 'none',
+              background: input.trim() ? 'linear-gradient(135deg, #7c3aed, #3b82f6)' : '#e5e7eb',
+              color: '#fff', cursor: input.trim() ? 'pointer' : 'default',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all 0.15s',
+            }}
+          >
+            <Send size={16} />
+          </button>
+        </div>
+      </div>
     </div>
   );
-}
-
-// Hook to get groupAPI inside GroupsTab without prop drilling
-function useGroupAPI() {
-  return { groupAPI };
 }
