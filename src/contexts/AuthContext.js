@@ -59,7 +59,7 @@ export const AuthProvider = ({ children }) => {
       setUser(user);
 
       const dashboardPath = user.role === 'student'
-        ? '/dashboard/student'
+        ? '/dashboard/student/practice-hub'
         : '/dashboard/teacher';
       router.push(dashboardPath);
 
@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }) => {
       setUser(user);
 
       const dashboardPath = user.role === 'student'
-        ? '/dashboard/student'
+        ? '/dashboard/student/practice-hub'
         : '/dashboard/teacher';
       router.push(dashboardPath);
 
