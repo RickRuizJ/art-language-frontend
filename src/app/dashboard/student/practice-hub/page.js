@@ -1,24 +1,4 @@
 'use client';
-/**
- * app/dashboard/student/practice-hub/page.js
- *
- * BUG FIXED:
- * The ALModal component called https://api.anthropic.com/v1/messages directly
- * from the browser. This fails with 401 Unauthorized because:
- *   a) There is no API key in the browser (it would be exposed if there was).
- *   b) Anthropic's API does not accept browser-origin requests without CORS
- *      headers and a valid key.
- *
- * The project already has a Next.js API route at /api/al-assistant that acts
- * as a secure server-side proxy for the Anthropic API. The AL chat modal
- * should call that route instead.
- *
- * FIX: Change the fetch URL from the Anthropic endpoint to '/api/al-assistant'
- * and adjust the request body to match what the Next.js proxy expects.
- *
- * Also fixed: the "Home" link was pointing to /login instead of the correct
- * back navigation. Changed to use router.back() or a sensible default.
- */
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
@@ -70,18 +50,19 @@ const SKILLS = [
 export default function PracticeHub() {
   const [activeLevel, setActiveLevel] = useState('A1');
   const [alOpen, setAlOpen]           = useState(false);
-  const level  = LEVELS.find(l => l.id === activeLevel);
+  const level   = LEVELS.find(l => l.id === activeLevel);
   const totalXp = LEVELS.reduce((s, l) => s + l.xp, 0);
   const streak  = 7;
 
   return (
     <>
       <div style={{ minHeight: '100vh', background: '#fafaf9', fontFamily: "'Nunito', 'Segoe UI', sans-serif" }}>
+
         {/* Top Nav */}
         <header style={{ background: '#fff', borderBottom: '2px solid #f3f4f6', position: 'sticky', top: 0, zIndex: 50 }}>
           <div style={{ maxWidth: 900, margin: '0 auto', padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Link href="/dashboard/teacher" style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#6b7280', textDecoration: 'none', fontWeight: 600, fontSize: 15 }}>
-              <ArrowLeft size={18} /> Home
+            <Link href="/dashboard/student" style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#6b7280', textDecoration: 'none', fontWeight: 600, fontSize: 15 }}>
+              <ArrowLeft size={18} /> Dashboard
             </Link>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-1px', color: '#111' }}>Practice</span>
@@ -101,6 +82,7 @@ export default function PracticeHub() {
         </header>
 
         <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
+
           {/* Hero */}
           <div style={{ marginBottom: 36, textAlign: 'center' }}>
             <h1 style={{ fontSize: 34, fontWeight: 900, color: '#111827', margin: '0 0 8px', letterSpacing: '-0.5px' }}>
@@ -207,6 +189,7 @@ export default function PracticeHub() {
               </button>
             </div>
           </div>
+
         </div>
       </div>
 
@@ -237,40 +220,35 @@ function ALModal({ onClose }) {
 
     try {
       /**
-       * FIX: Call the Next.js API proxy route instead of Anthropic directly.
-       * The original code called https://api.anthropic.com/v1/messages from
-       * the browser — this fails with 401 because there is no API key in the
-       * client bundle.
+       * BUG 3 FIX: The original code called https://api.anthropic.com/v1/messages
+       * directly from the browser. That fails with 401 — no API key in the browser.
        *
-       * The project already has /api/al-assistant as a server-side proxy.
-       * We send our conversation history there and it forwards to Anthropic
-       * securely using the server-side ANTHROPIC_API_KEY env var.
+       * Now we call our own Next.js server-side proxy at /api/al-assistant,
+       * which holds ANTHROPIC_API_KEY securely and returns { reply: "text" }.
        */
       const res = await fetch('/api/al-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: [
-            ...messages.filter((_, i) => i > 0).map(m => ({
+            // Send full conversation history (skip the opening assistant greeting)
+            ...messages.slice(1).map(m => ({
               role:    m.role,
-              content: m.text
+              content: m.text,
             })),
-            { role: 'user', content: userMsg }
-          ]
-        })
+            { role: 'user', content: userMsg },
+          ],
+        }),
       });
 
       if (!res.ok) {
-        throw new Error(`API error: ${res.status}`);
+        throw new Error(`Proxy error: ${res.status}`);
       }
 
-      const data = await res.json();
-      // The proxy returns { reply: "..." } or fall back to content array
-      const reply = data.reply
-        || data.content?.[0]?.text
-        || "Sorry, I couldn't respond. Try again!";
-
+      const data  = await res.json();
+      const reply = data.reply || "Sorry, I couldn't respond. Try again!";
       setMessages(prev => [...prev, { role: 'assistant', text: reply }]);
+
     } catch (err) {
       console.error('AL chat error:', err);
       setMessages(prev => [...prev, { role: 'assistant', text: "Oops! Something went wrong. Please try again 🙏" }]);
@@ -304,7 +282,13 @@ function ALModal({ onClose }) {
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {messages.map((m, i) => (
             <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-              <div style={{ maxWidth: '80%', background: m.role === 'user' ? 'linear-gradient(135deg, #7c3aed, #3b82f6)' : '#f3f4f6', color: m.role === 'user' ? '#fff' : '#111827', borderRadius: m.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px', padding: '10px 14px', fontSize: 14, lineHeight: 1.5, fontWeight: 500, whiteSpace: 'pre-wrap' }}>
+              <div style={{
+                maxWidth: '80%',
+                background: m.role === 'user' ? 'linear-gradient(135deg, #7c3aed, #3b82f6)' : '#f3f4f6',
+                color: m.role === 'user' ? '#fff' : '#111827',
+                borderRadius: m.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                padding: '10px 14px', fontSize: 14, lineHeight: 1.5, fontWeight: 500, whiteSpace: 'pre-wrap',
+              }}>
                 {m.text}
               </div>
             </div>
@@ -324,7 +308,7 @@ function ALModal({ onClose }) {
             placeholder="Ask AL anything…"
             value={input}
             onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && sendMessage()}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
             disabled={loading}
           />
           <button

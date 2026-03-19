@@ -9,7 +9,7 @@ const AuthContext = createContext({});
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser]       = useState(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -18,10 +18,6 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkAuth = async () => {
-    // BUG 1 FIX: Next.js runs this component on the server during SSR where
-    // localStorage does not exist. Without this guard the entire function throws
-    // before reaching the finally block, so setLoading(false) never executes and
-    // loading stays true forever — the root cause of the infinite spinner.
     if (typeof window === 'undefined') {
       setLoading(false);
       return;
@@ -37,9 +33,6 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.getMe();
       setUser(response.data.data.user);
     } catch (error) {
-      // BUG 2 FIX: On any failure (401 expired token, network error) the catch
-      // block must clear stale credentials so the app lands on login cleanly
-      // instead of looping. The finally block handles setLoading.
       console.error('Auth check failed:', error);
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -58,8 +51,12 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(user));
       setUser(user);
 
+      // BUG 2 FIX: students were redirected to /dashboard/student/practice-hub
+      // which skipped the main student dashboard entirely.
+      // Now students land on /dashboard/student (their proper dashboard),
+      // which has a prominent Practice Hub button to navigate further.
       const dashboardPath = user.role === 'student'
-        ? '/dashboard/student/practice-hub'
+        ? '/dashboard/student'
         : '/dashboard/teacher';
       router.push(dashboardPath);
 
@@ -79,8 +76,9 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(user));
       setUser(user);
 
+      // BUG 2 FIX: same redirect fix for registration flow.
       const dashboardPath = user.role === 'student'
-        ? '/dashboard/student/practice-hub'
+        ? '/dashboard/student'
         : '/dashboard/teacher';
       router.push(dashboardPath);
 
@@ -105,9 +103,9 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     isAuthenticated: !!user,
-    isStudent: user?.role === 'student',
-    isTeacher: user?.role === 'teacher',
-    isAdmin: user?.role === 'admin',
+    isStudent:       user?.role === 'student',
+    isTeacher:       user?.role === 'teacher',
+    isAdmin:         user?.role === 'admin',
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
