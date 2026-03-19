@@ -3,6 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   images: {
     domains: ['localhost', 'res.cloudinary.com'],
+    unoptimized: true,
   },
   // BUG FIX: The original config had:
   //
