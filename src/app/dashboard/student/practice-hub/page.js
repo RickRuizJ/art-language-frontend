@@ -145,6 +145,60 @@ export default function PracticeHub() {
             <div style={{ fontSize: 12, color: '#9ca3af', fontWeight: 600 }}>{level.maxXp - level.xp} XP to next milestone</div>
           </div>
 
+          {/* ── PLACEMENT TEST CARD ── */}
+          <Link href="/dashboard/student/placement-test" style={{ textDecoration: 'none', display: 'block', marginBottom: 20 }}>
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #0f0a1e 0%, #1a0d3b 60%, #0d1a3b 100%)',
+                border: '2px solid rgba(139,92,246,0.5)',
+                borderRadius: 24,
+                padding: '22px 26px',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20,
+                boxShadow: '0 8px 32px rgba(124,58,237,0.25)',
+                transition: 'all 0.2s ease',
+                position: 'relative', overflow: 'hidden',
+                cursor: 'pointer',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(124,58,237,0.45)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(124,58,237,0.25)'; }}
+            >
+              {/* Decorative stars */}
+              {[[12,20],[80,35],[55,70],[92,60],[30,80],[70,15]].map(([x,y],i) => (
+                <div key={i} style={{ position:'absolute', left:`${x}%`, top:`${y}%`, width: i%2?2:1.5, height: i%2?2:1.5, borderRadius:'50%', background:'white', opacity:0.45, pointerEvents:'none' }} />
+              ))}
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+                {/* AL mini icon */}
+                <div style={{
+                  width: 54, height: 54, borderRadius: '50%', flexShrink: 0,
+                  background: 'linear-gradient(135deg, #7c3aed, #3b82f6)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 26,
+                  boxShadow: '0 0 20px rgba(124,58,237,0.6)',
+                }}>🤖</div>
+
+                <div>
+                  <div style={{ fontWeight: 900, fontSize: 17, color: '#f3f4f6', letterSpacing: '-0.3px' }}>
+                    Placement Test
+                  </div>
+                  <div style={{ fontSize: 13, color: '#a78bfa', fontWeight: 700, marginTop: 2 }}>
+                    Discover your CEFR level · A1 to B2
+                  </div>
+                </div>
+              </div>
+
+              <div style={{
+                background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+                color: '#fff', borderRadius: 12,
+                padding: '10px 22px', fontWeight: 900, fontSize: 14,
+                flexShrink: 0,
+                boxShadow: '0 4px 14px rgba(124,58,237,0.5)',
+              }}>
+                Start →
+              </div>
+            </div>
+          </Link>
+
           {/* Skill Cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 16 }}>
             {SKILLS.map((skill) => {
@@ -219,19 +273,11 @@ function ALModal({ onClose }) {
     setLoading(true);
 
     try {
-      /**
-       * BUG 3 FIX: The original code called https://api.anthropic.com/v1/messages
-       * directly from the browser. That fails with 401 — no API key in the browser.
-       *
-       * Now we call our own Next.js server-side proxy at /api/al-assistant,
-       * which holds ANTHROPIC_API_KEY securely and returns { reply: "text" }.
-       */
       const res = await fetch('/api/al-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: [
-            // Send full conversation history (skip the opening assistant greeting)
             ...messages.slice(1).map(m => ({
               role:    m.role,
               content: m.text,
