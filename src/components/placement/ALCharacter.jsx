@@ -149,7 +149,7 @@ export default function ALCharacter({ mood = 'idle', size = 'md', className = ''
               <div key={i} style={{
                 width:s, height:s, borderRadius:'50%',
                 background:'rgba(196,181,253,0.8)',
-                animation:`al-thought ${1.4s} ${i*0.22}s ease-in-out infinite`,
+                animation:`al-thought 1.4s ${i*0.22}s ease-in-out infinite`,
               }}/>
             ))}
           </div>
