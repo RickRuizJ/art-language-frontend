@@ -90,16 +90,25 @@ export default function PlacementTestPage() {
   const handleAnswer = useCallback((option) => {
     if (selected !== null || transitioning) return;
     setSelected(option);
-    const isCorrect = option === q.answer;
-    const newScore  = isCorrect ? score + 1 : score;
-    if (isCorrect) setScore(newScore);
-    const type = isCorrect ? 'correct' : 'wrong';
-    setAlMood(type);
-    setFeedback({ visible:true, msg:rand(type), type });
-    timerRef.current = setTimeout(() => {
-      setFeedback(f => ({ ...f, visible:false }));
-      advance(newScore);
-    }, 1500);
+
+    /* 1. Immediately: AL reacts to the tap with thinking */
+    setAlMood('thinking');
+    setAlMsg('Hmm, let me check... \u{1F914}');
+
+    /* 2. Brief thinking pause (280ms), then evaluate */
+    setTimeout(() => {
+      const isCorrect = option === q.answer;
+      const newScore  = isCorrect ? score + 1 : score;
+      if (isCorrect) setScore(newScore);
+      const type = isCorrect ? 'correct' : 'wrong';
+      setAlMood(type);
+      setAlMsg(rand(type));
+      setFeedback({ visible:true, msg:rand(type), type });
+      timerRef.current = setTimeout(() => {
+        setFeedback(f => ({ ...f, visible:false }));
+        advance(newScore);
+      }, 1500);
+    }, 280);
   }, [selected, transitioning, q, score]);
 
   /* ── Advance ── */
