@@ -3,194 +3,219 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
 /* ─────────────────────────────────────────────────────────────
-   ALCharacter v3 — Video-based with CSS fallback
+   ALCharacter v4 — 10 real video states
    
-   mood: 'idle' | 'thinking' | 'correct' | 'wrong' | 'progress' | 'final' | 'intro'
-   size: 'sm' | 'md' | 'lg' | 'xl'
+   States:
+     idle         → al-idle.mp4          (loops)
+     correct      → al-correct.mp4       (once → idle)
+     wrong        → al-wrong.mp4         (once → idle)
+     welcome      → al-welcome.mp4       (once → ready)
+     ready        → al-ready.mp4         (once → idle)
+     celebrating  → al-celebrating.mp4   (loops)
+     welldone     → al-welldone.mp4      (once → idle)
+     surprised    → al-surprised.mp4     (once → idle)
+     nextphase    → al-next-phase.mp4    (once → idle)
+     wronganswer  → al-wrong-answer.mp4  (once → idle)
+     thinking     → al-idle.mp4          (loops, reuse)
+     superIdle    → al-idle.mp4          (loops + golden glow)
+     meteor       → al-surprised.mp4     (once → idle)
+     disappear    → al-wrong-answer.mp4  (once → idle)
    
-   VIDEO MAP — add files to /public/ as you create them:
-     al-idle.mp4         — floating loop  (loops forever)
-     al-correct.mp4      — bounce + smile (plays once → idle)
-     al-wrong.mp4        — shake + sad    (plays once → idle)
-     al-thinking.mp4     — tilt loop      (loops until answer)
-     al-final.mp4        — celebration    (loops forever)
-   
-   FALLBACK: If a video file is missing, falls back to the
-   CSS-animated image version automatically — no crash, no blank.
+   size: 'sm'|'md'|'lg'|'xl'
+   onEnd: callback fired when a one-shot animation finishes
 ───────────────────────────────────────────────────────────── */
 
-const SIZES = { sm: 100, md: 150, lg: 210, xl: 280 };
+const SIZES = { sm: 110, md: 160, lg: 220, xl: 300 };
 
-/* Which moods loop vs play once */
-const LOOPS = {
-  idle:     true,
-  thinking: true,
-  progress: true,
-  final:    true,
-  intro:    false,
-  correct:  false,   // plays once then caller sets back to idle
-  wrong:    false,   // plays once then caller sets back to idle
+/* Video mapping */
+const VIDEO = {
+  idle:        { src: '/al-idle.mp4',         loop: true,  fallbackAnim: 'alFloat'     },
+  correct:     { src: '/al-correct.mp4',       loop: false, fallbackAnim: 'alBounce'    },
+  wrong:       { src: '/al-wrong.mp4',         loop: false, fallbackAnim: 'alShake'     },
+  welcome:     { src: '/al-welcome.mp4',       loop: false, fallbackAnim: 'alEnter'     },
+  ready:       { src: '/al-ready.mp4',         loop: false, fallbackAnim: 'alFloat'     },
+  celebrating: { src: '/al-celebrating.mp4',   loop: true,  fallbackAnim: 'alCelebrate' },
+  welldone:    { src: '/al-welldone.mp4',      loop: false, fallbackAnim: 'alBounce'    },
+  surprised:   { src: '/al-surprised.mp4',     loop: false, fallbackAnim: 'alShake'     },
+  nextphase:   { src: '/al-next-phase.mp4',    loop: false, fallbackAnim: 'alBounce'    },
+  wronganswer: { src: '/al-wrong-answer.mp4',  loop: false, fallbackAnim: 'alShake'     },
+  thinking:    { src: '/al-idle.mp4',          loop: true,  fallbackAnim: 'alTilt'      },
+  superIdle:   { src: '/al-idle.mp4',          loop: true,  fallbackAnim: 'alFloat'     },
+  meteor:      { src: '/al-surprised.mp4',     loop: false, fallbackAnim: 'alShake'     },
+  disappear:   { src: '/al-wrong-answer.mp4',  loop: false, fallbackAnim: 'alShake'     },
 };
 
-/* Video file per mood — only idle + correct exist for now */
-const VIDEO_SRC = {
-  idle:     '/al-idle.mp4',
-  thinking: '/al-idle.mp4',   // reuse idle until thinking video exists
-  progress: '/al-idle.mp4',   // reuse idle
-  intro:    '/al-idle.mp4',   // reuse idle
-  correct:  '/al-correct.mp4',
-  wrong:    '/al-correct.mp4', // reuse correct until wrong video exists
-  final:    '/al-correct.mp4', // reuse correct until celebration video exists
-};
-
-/* Glow color per mood */
+/* Glow per state */
 const GLOW = {
-  idle:     { color: 'rgba(168,85,247,0.5)',  spread: 40 },
-  thinking: { color: 'rgba(139,92,246,0.42)', spread: 32 },
-  correct:  { color: 'rgba(34,197,94,0.72)',  spread: 52 },
-  wrong:    { color: 'rgba(239,68,68,0.62)',  spread: 42 },
-  progress: { color: 'rgba(59,130,246,0.6)',  spread: 38 },
-  final:    { color: 'rgba(251,191,36,0.82)', spread: 60 },
-  intro:    { color: 'rgba(168,85,247,0.5)',  spread: 40 },
+  idle:        { color: '#a855f7', intensity: 0.45 },
+  correct:     { color: '#22c55e', intensity: 0.75 },
+  wrong:       { color: '#ef4444', intensity: 0.60 },
+  welcome:     { color: '#a855f7', intensity: 0.70 },
+  ready:       { color: '#818cf8', intensity: 0.55 },
+  celebrating: { color: '#fbbf24', intensity: 0.90 },
+  welldone:    { color: '#22c55e', intensity: 0.80 },
+  surprised:   { color: '#f59e0b', intensity: 0.65 },
+  nextphase:   { color: '#3b82f6', intensity: 0.65 },
+  wronganswer: { color: '#ef4444', intensity: 0.65 },
+  thinking:    { color: '#8b5cf6', intensity: 0.40 },
+  superIdle:   { color: '#fbbf24', intensity: 0.80 },
+  meteor:      { color: '#f59e0b', intensity: 0.70 },
+  disappear:   { color: '#6d28d9', intensity: 0.50 },
 };
 
-export default function ALCharacter({ mood = 'idle', size = 'md', className = '' }) {
-  const px          = SIZES[size] || SIZES.md;
-  const videoRef    = useRef(null);
-  const prevSrc     = useRef(null);
-  const [videoOk, setVideoOk]   = useState(true);   // false = use CSS fallback
-  const [opacity, setOpacity]   = useState(1);       // for crossfade
-  const [sparkles, setSparkles] = useState([]);
-  const [animKey, setAnimKey]   = useState(0);
+/* Sparkle colors */
+const SPARK_COLORS = {
+  correct:     ['#86efac','#fde68a','#c4b5fd','#7dd3fc'],
+  welldone:    ['#86efac','#fde68a','#c4b5fd'],
+  celebrating: ['#fde68a','#fbbf24','#c4b5fd','#f9a8d4','#7dd3fc'],
+  welcome:     ['#c4b5fd','#818cf8','#fde68a'],
+};
 
-  const src = VIDEO_SRC[mood] || VIDEO_SRC.idle;
-  const shouldLoop = LOOPS[mood] ?? true;
-  const glow = GLOW[mood] || GLOW.idle;
+export default function ALCharacter({
+  state = 'idle',
+  size  = 'md',
+  onEnd = null,
+  className = '',
+}) {
+  const px       = SIZES[size] || SIZES.md;
+  const videoRef = useRef(null);
+  const cfg      = VIDEO[state] || VIDEO.idle;
+  const glow     = GLOW[state]  || GLOW.idle;
 
-  /* ── Smooth src transition ── */
+  const [videoError, setVideoError] = useState(false);
+  const [sparks, setSparks]         = useState([]);
+  const [opacity, setOpacity]       = useState(1);
+  const prevState = useRef(null);
+  const prevSrc   = useRef(null);
+  const endCalled = useRef(false);
+
+  /* ── Video management ── */
   useEffect(() => {
-    if (!videoOk) return;
+    setVideoError(false);
+    endCalled.current = false;
+
     const video = videoRef.current;
     if (!video) return;
 
-    if (prevSrc.current !== src) {
-      prevSrc.current = src;
-      /* Crossfade: fade out → swap → fade in */
-      setOpacity(0.3);
+    if (prevSrc.current !== cfg.src) {
+      prevSrc.current = cfg.src;
+      setOpacity(0.25);
       setTimeout(() => {
-        video.src = src;
-        video.loop = shouldLoop;
+        if (!video) return;
+        video.src    = cfg.src;
+        video.loop   = cfg.loop;
         video.load();
-        video.play().catch(() => {
-          /* Autoplay blocked - will play on next user gesture */
-        });
-        setOpacity(1);
-      }, 120);
-    } else {
-      /* Same source, just update loop */
-      video.loop = shouldLoop;
-      /* If it was paused (ended), restart */
-      if (video.paused && video.ended) {
-        video.currentTime = 0;
         video.play().catch(() => {});
-      }
+        setOpacity(1);
+      }, 110);
+    } else {
+      video.loop = cfg.loop;
+      if (video.paused) video.play().catch(() => {});
     }
-  }, [src, shouldLoop, videoOk]);
 
-  /* ── Sparkles for correct/final ── */
+    prevState.current = state;
+  }, [state, cfg.src, cfg.loop]);
+
+  /* ── Video ended (one-shot) ── */
+  const handleEnded = useCallback(() => {
+    if (!endCalled.current) {
+      endCalled.current = true;
+      onEnd?.();
+    }
+  }, [onEnd]);
+
+  /* ── Sparkles ── */
   useEffect(() => {
-    setAnimKey(k => k + 1);
-    if (mood === 'correct' || mood === 'final') {
-      const n = mood === 'final' ? 14 : 9;
-      const colors = ['#fde68a','#c4b5fd','#86efac','#f9a8d4','#7dd3fc','#fbbf24'];
-      setSparkles(Array.from({ length: n }, (_, i) => ({
-        id: i,
-        color: colors[i % colors.length],
-        angle: (360 / n) * i + Math.random() * 20,
-        dist: 50 + Math.random() * 35,
-        r: 3.5 + Math.random() * 4.5,
-        delay: i * 0.055,
-      })));
-      const t = setTimeout(() => setSparkles([]), 1200);
+    const colors = SPARK_COLORS[state];
+    if (!colors) { setSparks([]); return; }
+
+    const n = state === 'celebrating' ? 16 : 10;
+    setSparks(Array.from({ length: n }, (_, i) => ({
+      id: i,
+      color: colors[i % colors.length],
+      angle: (360 / n) * i + Math.random() * 22,
+      dist:  55 + Math.random() * 40,
+      r:     3.5 + Math.random() * 5,
+      delay: i * 0.055,
+    })));
+
+    if (state !== 'celebrating') {
+      const t = setTimeout(() => setSparks([]), 1300);
       return () => clearTimeout(t);
     }
-  }, [mood]);
+  }, [state]);
 
-  /* ── Video error → CSS fallback ── */
-  function handleError() {
-    setVideoOk(false);
-  }
+  const glowRgb = hexToRgb(glow.color);
+  const glowStr = `rgba(${glowRgb},${glow.intensity})`;
+  const glowDim = `rgba(${glowRgb},${glow.intensity * 0.28})`;
 
   return (
     <>
       <div
-        className={`al-root al-mood-${mood} ${className}`}
-        key={animKey}
+        className={`al-root ${className}`}
         style={{
           position: 'relative',
-          width: px,
-          height: px,
-          display: 'inline-flex',
+          width:    px,
+          height:   px,
+          display:  'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
         }}
       >
-        {/* ── Ambient glow ring ── */}
-        <div
-          className="al-glow-ring"
-          style={{
-            position: 'absolute',
-            inset: '-18%',
-            borderRadius: '50%',
-            background: `radial-gradient(circle, ${glow.color.replace(/[\d.]+\)$/, '0.28)')} 0%, transparent 68%)`,
-            filter: `blur(${Math.round(glow.spread * 0.35)}px)`,
-            transition: 'background 0.45s ease, filter 0.45s ease',
-            animation: 'alGlowBreathe 3s ease-in-out infinite',
-            pointerEvents: 'none',
-          }}
-        />
+        {/* Ambient glow */}
+        <div style={{
+          position:     'absolute',
+          inset:        '-22%',
+          borderRadius: '50%',
+          background:   `radial-gradient(circle, ${glowDim} 0%, transparent 65%)`,
+          filter:       `blur(${Math.round(px * 0.1)}px)`,
+          transition:   'background 0.45s ease, box-shadow 0.45s ease',
+          boxShadow:    `0 0 ${px * 0.35}px ${glowStr}, 0 0 ${px * 0.7}px ${glowDim}`,
+          animation:    'alGlowBreathe 3s ease-in-out infinite',
+          pointerEvents:'none',
+        }} />
 
-        {/* ── VIDEO (primary) ── */}
-        {videoOk && (
+        {/* ── VIDEO ── */}
+        {!videoError && (
           <video
             ref={videoRef}
             autoPlay
-            loop={shouldLoop}
+            loop={cfg.loop}
             muted
             playsInline
             preload="auto"
-            onError={handleError}
+            onError={() => setVideoError(true)}
+            onEnded={handleEnded}
             style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
+              position:     'absolute',
+              inset:        0,
+              width:        '100%',
+              height:       '100%',
+              objectFit:    'cover',
               borderRadius: '50%',
-              display: 'block',
+              display:      'block',
               opacity,
-              transition: 'opacity 0.12s ease, filter 0.4s ease',
-              filter: `drop-shadow(0 0 ${glow.spread * 0.45}px ${glow.color})`,
+              transition:   'opacity 0.12s ease, filter 0.4s ease',
+              filter:       `drop-shadow(0 0 ${px * 0.15}px ${glowStr})`,
             }}
           >
-            <source src={src} type="video/mp4" />
+            <source src={cfg.src} type="video/mp4" />
           </video>
         )}
 
-        {/* ── CSS FALLBACK (if video fails or missing) ── */}
-        {!videoOk && (
+        {/* ── CSS FALLBACK ── */}
+        {videoError && (
           <div
-            className={`al-css-fallback al-css-${mood}`}
+            className={`al-fallback al-fallback-${cfg.fallbackAnim}`}
             style={{
-              position: 'absolute',
-              inset: 0,
+              position:     'absolute',
+              inset:        0,
               borderRadius: '50%',
-              overflow: 'hidden',
-              filter: `drop-shadow(0 0 ${glow.spread * 0.5}px ${glow.color})`,
+              overflow:     'hidden',
+              filter:       `drop-shadow(0 0 ${px * 0.18}px ${glowStr})`,
             }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/al-character.jpg"
               alt="AL"
@@ -199,129 +224,134 @@ export default function ALCharacter({ mood = 'idle', size = 'md', className = ''
           </div>
         )}
 
-        {/* ── Mood color tint overlays ── */}
-        {mood === 'correct' && (
-          <div style={{
-            position:'absolute',inset:0,borderRadius:'50%',
-            background:'rgba(34,197,94,0.12)',
-            animation:'alTintFade 0.9s ease both',
-            pointerEvents:'none',
-          }}/>
-        )}
-        {mood === 'wrong' && (
-          <div style={{
-            position:'absolute',inset:0,borderRadius:'50%',
-            background:'rgba(239,68,68,0.1)',
-            animation:'alTintFade 0.7s ease both',
-            pointerEvents:'none',
-          }}/>
-        )}
-        {mood === 'final' && (
-          <div style={{
-            position:'absolute',inset:0,borderRadius:'50%',
-            background:'rgba(251,191,36,0.1)',
-            animation:'alGoldenPulse 1.8s ease-in-out infinite',
-            pointerEvents:'none',
-          }}/>
+        {/* Mood tint */}
+        {state === 'correct' && <MoodTint color="rgba(34,197,94,0.12)" dur={0.9} />}
+        {state === 'wrong'   && <MoodTint color="rgba(239,68,68,0.10)" dur={0.7} />}
+        {state === 'meteor'  && <MoodTint color="rgba(245,158,11,0.12)" dur={0.8} />}
+        {state === 'celebrating' && (
+          <div style={{ position:'absolute', inset:0, borderRadius:'50%',
+            background:'rgba(251,191,36,0.10)', animation:'alGolden 1.8s ease-in-out infinite', pointerEvents:'none' }}/>
         )}
 
-        {/* ── Sparkle particles ── */}
-        {sparkles.map(sp => (
-          <span
-            key={sp.id}
-            style={{
-              position:'absolute',
-              top:'50%', left:'50%',
-              width: sp.r * 2, height: sp.r * 2,
-              marginTop: -sp.r, marginLeft: -sp.r,
-              borderRadius:'50%',
-              background: sp.color,
-              boxShadow: `0 0 8px ${sp.color}`,
-              '--tx': `${Math.cos((sp.angle * Math.PI) / 180) * sp.dist}px`,
-              '--ty': `${Math.sin((sp.angle * Math.PI) / 180) * sp.dist}px`,
-              animation: `alSpark 0.85s ${sp.delay}s cubic-bezier(0,.9,.57,1) both`,
-              pointerEvents:'none',
-            }}
-          />
+        {/* Thinking sparkle above head */}
+        {state === 'thinking' && (
+          <div style={{ position:'absolute', top:'-8%', right:'-2%', display:'flex', gap:3 }}>
+            {[0,1,2].map(i => (
+              <div key={i} style={{
+                width: 5+i*2, height: 5+i*2, borderRadius:'50%',
+                background:'rgba(196,181,253,0.8)',
+                animation:`alThoughtDot 1.3s ${i*0.2}s ease-in-out infinite`,
+              }}/>
+            ))}
+          </div>
+        )}
+
+        {/* Sparkle burst */}
+        {sparks.map(sp => (
+          <span key={sp.id} style={{
+            position:'absolute', top:'50%', left:'50%',
+            width: sp.r*2, height: sp.r*2,
+            marginTop: -sp.r, marginLeft: -sp.r,
+            borderRadius:'50%', background: sp.color,
+            boxShadow: `0 0 8px ${sp.color}`,
+            '--tx': `${Math.cos((sp.angle*Math.PI)/180)*sp.dist}px`,
+            '--ty': `${Math.sin((sp.angle*Math.PI)/180)*sp.dist}px`,
+            animation: `alSpark 0.9s ${sp.delay}s cubic-bezier(0,.9,.57,1) both`,
+            pointerEvents:'none',
+          }}/>
         ))}
       </div>
 
       <style>{`
-        /* ── Glow breathe ── */
         @keyframes alGlowBreathe {
-          0%,100% { opacity: 0.7; transform: scale(1); }
-          50%     { opacity: 1;   transform: scale(1.05); }
+          0%,100%{opacity:.7;transform:scale(1)}50%{opacity:1;transform:scale(1.06)}
+        }
+        @keyframes alGolden {
+          0%,100%{opacity:.08}50%{opacity:.26}
+        }
+        @keyframes alThoughtDot {
+          0%,100%{opacity:.3;transform:translateY(0) scale(.8)}
+          50%{opacity:1;transform:translateY(-5px) scale(1.1)}
+        }
+        @keyframes alSpark {
+          0%{transform:translate(0,0) scale(1);opacity:1}
+          100%{transform:translate(var(--tx),var(--ty)) scale(0);opacity:0}
         }
 
-        /* ── CSS mood animations (fallback + overlay) ── */
-        .al-css-idle     { animation: alFloat 4s ease-in-out infinite; }
-        .al-css-thinking { animation: alTilt 2.8s ease-in-out infinite; }
-        .al-css-correct  { animation: alBounce 0.9s cubic-bezier(.34,1.56,.64,1) both; }
-        .al-css-wrong    { animation: alShake 0.7s ease both; }
-        .al-css-progress { animation: alFloat 2s ease-in-out infinite; }
-        .al-css-final    { animation: alCelebrate 1.35s ease-in-out infinite; }
-        .al-css-intro    { animation: alEnter 1s cubic-bezier(.34,1.56,.64,1) both; }
+        /* ── CSS Fallback animations ── */
+        .al-fallback-alFloat    {animation:alFloat 4s ease-in-out infinite}
+        .al-fallback-alBounce   {animation:alBounce .9s cubic-bezier(.34,1.56,.64,1) both}
+        .al-fallback-alShake    {animation:alShake .75s ease both}
+        .al-fallback-alTilt     {animation:alTilt 2.8s ease-in-out infinite}
+        .al-fallback-alCelebrate{animation:alCelebrate 1.4s ease-in-out infinite}
+        .al-fallback-alEnter    {animation:alEnter 1s cubic-bezier(.34,1.56,.64,1) both}
 
         @keyframes alFloat {
-          0%,100% { transform: translateY(0px) rotate(0deg) scale(1); }
-          30%     { transform: translateY(-10px) rotate(1.8deg) scale(1.022); }
-          60%     { transform: translateY(-15px) rotate(-1.2deg) scale(1.028); }
-          80%     { transform: translateY(-7px) rotate(0.6deg) scale(1.012); }
-        }
-        @keyframes alTilt {
-          0%,100% { transform: rotate(0deg) translateY(0); }
-          25%     { transform: rotate(-4deg) translateY(-4px); }
-          55%     { transform: rotate(3deg) translateY(-6px) scale(1.02); }
-          78%     { transform: rotate(-2deg) translateY(-2px); }
+          0%,100%{transform:translateY(0) rotate(0deg) scale(1)}
+          30%{transform:translateY(-10px) rotate(1.5deg) scale(1.02,.98)}
+          60%{transform:translateY(-15px) rotate(-1deg) scale(.98,1.03)}
+          80%{transform:translateY(-7px) rotate(.5deg) scale(1.01,.99)}
         }
         @keyframes alBounce {
-          0%   { transform: translateY(0) scale(1); }
-          15%  { transform: translateY(-20px) scale(1.1); }
-          30%  { transform: translateY(-34px) scale(1.16); }
-          45%  { transform: translateY(-18px) scale(1.1); }
-          65%  { transform: translateY(-5px) scale(1.04); }
-          100% { transform: translateY(0) scale(1); }
+          0%{transform:scaleX(1.08) scaleY(.9) translateY(5px)}
+          15%{transform:scaleX(.9) scaleY(1.15) translateY(-30px) rotate(-4deg)}
+          30%{transform:scaleX(1.06) scaleY(.94) translateY(-18px) rotate(4deg)}
+          50%{transform:scaleX(.97) scaleY(1.06) translateY(-6px)}
+          70%{transform:scaleX(1.03) scaleY(.98) translateY(-2px)}
+          100%{transform:scale(1) translateY(0)}
         }
         @keyframes alShake {
-          0%,100% { transform: translateX(0) rotate(0deg); }
-          10%     { transform: translateX(-9px) rotate(-4deg); }
-          25%     { transform: translateX(8px) rotate(4deg); }
-          40%     { transform: translateX(-7px) rotate(-3deg); }
-          55%     { transform: translateX(5px) rotate(2deg); }
-          70%     { transform: translateX(-3px); }
-          85%     { transform: translateX(2px); }
+          0%{transform:scaleX(1.1) scaleY(.88)}
+          8%{transform:translateX(-10px) rotate(-5deg) scaleX(.95) scaleY(1.06)}
+          18%{transform:translateX(9px) rotate(5deg)}
+          28%{transform:translateX(-7px) rotate(-3deg)}
+          40%{transform:translateX(5px) rotate(2deg)}
+          55%{transform:translateX(-3px) rotate(-1deg)}
+          70%{transform:translateY(3px) rotate(-1.5deg)}
+          100%{transform:scale(1) translateY(0)}
+        }
+        @keyframes alTilt {
+          0%,100%{transform:rotate(0deg) translateY(0)}
+          22%{transform:rotate(-5deg) translateY(-4px)}
+          55%{transform:rotate(4deg) translateY(-7px) scale(1.02)}
+          78%{transform:rotate(-2deg) translateY(-2px)}
         }
         @keyframes alCelebrate {
-          0%,100% { transform: translateY(0) scale(1) rotate(0deg); }
-          15%     { transform: translateY(-26px) scale(1.13) rotate(-5deg); }
-          30%     { transform: translateY(-40px) scale(1.18) rotate(6deg); }
-          45%     { transform: translateY(-24px) scale(1.12) rotate(-3deg); }
-          60%     { transform: translateY(-12px) scale(1.08) rotate(2deg); }
-          78%     { transform: translateY(-20px) scale(1.1) rotate(-2deg); }
+          0%,100%{transform:translateY(0) scale(1) rotate(0deg)}
+          14%{transform:translateY(-24px) scaleX(.9) scaleY(1.12) rotate(-5deg)}
+          28%{transform:translateY(-40px) scaleX(1.06) scaleY(.94) rotate(6deg)}
+          44%{transform:translateY(-24px) scaleX(.94) scaleY(1.08) rotate(-3deg)}
+          60%{transform:translateY(-12px) scaleX(1.03) scaleY(.97) rotate(2deg)}
+          78%{transform:translateY(-22px) scaleX(.97) scaleY(1.05) rotate(-2deg)}
         }
         @keyframes alEnter {
-          0%   { transform: translateY(70px) scale(0.65) rotate(-10deg); opacity: 0; }
-          40%  { transform: translateY(-20px) scale(1.1) rotate(4deg); opacity: 1; }
-          65%  { transform: translateY(8px) scale(0.97) rotate(-1.5deg); }
-          100% { transform: translateY(0) scale(1) rotate(0deg); opacity: 1; }
-        }
-
-        /* ── Tint overlays ── */
-        @keyframes alTintFade {
-          0%   { opacity: 1; }
-          100% { opacity: 0; }
-        }
-        @keyframes alGoldenPulse {
-          0%,100% { opacity: 0.08; }
-          50%     { opacity: 0.24; }
-        }
-
-        /* ── Sparkles ── */
-        @keyframes alSpark {
-          0%   { transform: translate(0,0) scale(1); opacity: 1; }
-          100% { transform: translate(var(--tx),var(--ty)) scale(0); opacity: 0; }
+          0%{transform:translateY(80px) scale(.6) rotate(-12deg);opacity:0}
+          38%{transform:translateY(-22px) scale(1.12) rotate(5deg);opacity:1}
+          62%{transform:translateY(8px) scale(.96) rotate(-1.5deg)}
+          80%{transform:translateY(-10px) scale(1.04) rotate(1deg)}
+          100%{transform:translateY(0) scale(1) rotate(0deg);opacity:1}
         }
       `}</style>
     </>
   );
+}
+
+function MoodTint({ color, dur }) {
+  return (
+    <div style={{
+      position:'absolute', inset:0, borderRadius:'50%',
+      background: color,
+      animation: `alTintFade ${dur}s ease both`,
+      pointerEvents:'none',
+    }}>
+      <style>{`@keyframes alTintFade{0%{opacity:1}100%{opacity:0}}`}</style>
+    </div>
+  );
+}
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `${r},${g},${b}`;
 }
