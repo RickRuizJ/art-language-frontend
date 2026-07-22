@@ -77,6 +77,7 @@ function WorksheetBuilderPage() {
     estimatedTime: 30,
     autoGrade: true,
     passScore: 70,
+    maxAttempts: 1, // Sprint 0: configurable attempts (0 = unlimited)
   });
 
   const [questions, setQuestions] = useState([]);
@@ -108,6 +109,7 @@ function WorksheetBuilderPage() {
         estimatedTime: w.estimatedTime || 30,
         autoGrade: w.autoGrade !== false,
         passScore: w.passScore || 70,
+        maxAttempts: w.maxAttempts ?? 1,
       });
 
       setQuestions(
@@ -302,6 +304,22 @@ function WorksheetBuilderPage() {
               setFormData({ ...formData, description: e.target.value })
             }
           />
+
+          <label className="block mt-4 text-sm font-medium text-neutral-700">
+            Attempts allowed
+          </label>
+          <select
+            className="input"
+            value={formData.maxAttempts}
+            onChange={e =>
+              setFormData({ ...formData, maxAttempts: parseInt(e.target.value, 10) })
+            }
+          >
+            <option value={1}>1 attempt</option>
+            <option value={2}>2 attempts</option>
+            <option value={3}>3 attempts</option>
+            <option value={0}>Unlimited</option>
+          </select>
 
         </div>
 
