@@ -89,17 +89,23 @@ export const groupAPI = {
 };
 
 // ─── Assignment API ───────────────────────────────────────────────────────────
+// SPRINT 0 FIX: `getStudentAssignments` and `submit` pointed at backend routes
+// that never existed in app.js (they lived only in the now-deleted, never-
+// mounted routes/assignmentRoutes.js) and were not called from any page —
+// dead code. `getStudentAssignments` is fixed here to hit the real endpoint
+// (GET /api/students/assignments, self-scoped via the auth token). `submit`
+// is removed until the Student Player (Sprint 4) needs a real submit-
+// assignment endpoint — worksheet answers are already submitted via
+// submissionAPI, not assignmentAPI.
 export const assignmentAPI = {
   assign: (groupId, data) =>
     api.post(`/groups/${groupId}/assignments`, data),
   getGroupAssignments: (groupId) =>
     api.get(`/groups/${groupId}/assignments`),
-  getStudentAssignments: (studentId) =>
-    api.get(`/students/${studentId}/assignments`),
+  getMyAssignments: () =>
+    api.get('/students/assignments'),
   remove: (groupId, assignmentId) =>
     api.delete(`/groups/${groupId}/assignments/${assignmentId}`),
-  submit: (assignmentId, data) =>
-    api.put(`/assignments/${assignmentId}/submit`, data),
 };
 
 // ─── Progress API ─────────────────────────────────────────────────────────────
