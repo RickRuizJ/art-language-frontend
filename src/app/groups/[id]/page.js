@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { groupAPI, assignmentAPI } from '@/lib/api';
+import { groupAPI, assignmentAPI, messageAPI } from '@/lib/api';
 import Link from 'next/link';
-import { ArrowLeft, Users, BookOpen, Plus, Trash2, UserMinus, Copy, Check } from 'lucide-react';
+import { ArrowLeft, Users, BookOpen, Plus, Trash2, UserMinus, Copy, Check, MessageSquare, Send, X } from 'lucide-react';
 import AssignWorksheetModal from '@/components/AssignWorksheetModal';
 
 export default function GroupDetailPage() {
@@ -31,6 +31,13 @@ export default function GroupDetailPage() {
   // Assignment Modal state
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignments, setAssignments] = useState([]);
+
+  // Teacher -> student message modal
+  const [messageStudent, setMessageStudent] = useState(null);
+  const [messageSubject, setMessageSubject] = useState('');
+  const [messageBody, setMessageBody] = useState('');
+  const [messageSending, setMessageSending] = useState(false);
+  const [messageError, setMessageError] = useState('');
 
   useEffect(() => {
     if (params.id) {
@@ -144,6 +151,45 @@ export default function GroupDetailPage() {
     } catch (err) {
       console.error('Error removing assignment:', err);
       alert('Failed to remove assignment. Please try again.');
+    }
+  };
+
+  const openMessageModal = (student) => {
+    setMessageStudent(student);
+    setMessageSubject('');
+    setMessageBody('');
+    setMessageError('');
+  };
+
+  const closeMessageModal = () => {
+    setMessageStudent(null);
+    setMessageSubject('');
+    setMessageBody('');
+    setMessageError('');
+  };
+
+  const handleSendMessage = async () => {
+    if (!messageStudent || !messageBody.trim()) {
+      setMessageError('Write a message before sending.');
+      return;
+    }
+
+    try {
+      setMessageSending(true);
+      setMessageError('');
+      await messageAPI.send({
+        recipientId: messageStudent.id,
+        groupId: group.id,
+        subject: messageSubject.trim() || undefined,
+        body: messageBody.trim(),
+      });
+      alert(`Message sent to ${messageStudent.firstName}.`);
+      closeMessageModal();
+    } catch (err) {
+      console.error('Send message error:', err);
+      setMessageError(err.response?.data?.message || 'Could not send the message.');
+    } finally {
+      setMessageSending(false);
     }
   };
 
@@ -417,13 +463,23 @@ export default function GroupDetailPage() {
                     </div>
 
                     {isOwner && (
-                      <button
-                        onClick={() => handleRemoveStudent(member.studentId)}
-                        className="btn btn-ghost text-red-600"
-                      >
-                        <UserMinus className="w-4 h-4" />
-                        Remove
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openMessageModal(member.student)}
+                          className="btn btn-ghost text-primary-600"
+                          title={`Message ${member.student?.firstName || 'student'}`}
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                          Message
+                        </button>
+                        <button
+                          onClick={() => handleRemoveStudent(member.studentId)}
+                          className="btn btn-ghost text-red-600"
+                        >
+                          <UserMinus className="w-4 h-4" />
+                          Remove
+                        </button>
+                      </div>
                     )}
                   </div>
                 ))}
@@ -509,6 +565,70 @@ export default function GroupDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Message Student Modal */}
+      {messageStudent && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full">
+            <div className="p-6 border-b border-neutral-200 flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-bold text-neutral-900">
+                  Message {messageStudent.firstName} {messageStudent.lastName}
+                </h3>
+                <p className="text-sm text-neutral-500 mt-1">The message will appear on the student's dashboard.</p>
+              </div>
+              <button onClick={closeMessageModal} className="btn btn-ghost p-2" disabled={messageSending}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {messageError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-3">
+                  {messageError}
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Subject (optional)</label>
+                <input
+                  className="input w-full"
+                  value={messageSubject}
+                  onChange={(e) => setMessageSubject(e.target.value)}
+                  maxLength={180}
+                  placeholder="Homework, reminder, feedback..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Message</label>
+                <textarea
+                  className="input w-full resize-none"
+                  rows={6}
+                  value={messageBody}
+                  onChange={(e) => setMessageBody(e.target.value)}
+                  maxLength={5000}
+                  placeholder="Write your message..."
+                  autoFocus
+                />
+                <p className="text-xs text-neutral-400 text-right mt-1">{messageBody.length}/5000</p>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-neutral-200 flex gap-3">
+              <button onClick={closeMessageModal} className="btn btn-outline flex-1" disabled={messageSending}>
+                Cancel
+              </button>
+              <button
+                onClick={handleSendMessage}
+                className="btn btn-primary flex-1"
+                disabled={messageSending || !messageBody.trim()}
+              >
+                <Send className="w-4 h-4" />
+                {messageSending ? 'Sending...' : 'Send Message'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Students Modal */}
       {showAddModal && (

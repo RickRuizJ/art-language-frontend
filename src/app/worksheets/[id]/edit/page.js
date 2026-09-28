@@ -53,7 +53,7 @@ export default function EditWorksheetPage() {
         description: ws.description || '',
         subject: ws.subject || '',
         gradeLevel: ws.gradeLevel || '',
-        workbookId: ws.workbookId || '',
+        workbookId: ws.workbooks?.[0]?.id || '',
         instructions: ws.instructions || '',
         type: ws.type || 'pdf',
       });
@@ -79,7 +79,14 @@ export default function EditWorksheetPage() {
 
     try {
       setSaving(true);
-      await worksheetAPI.update(params.id, formData);
+      await worksheetAPI.update(params.id, {
+        title: formData.title,
+        description: formData.description,
+        instructions: formData.instructions,
+        subject: formData.subject,
+        gradeLevel: formData.gradeLevel,
+        workbookId: formData.workbookId,
+      });
 
       alert('Worksheet updated successfully!');
       router.push(`/worksheets/${params.id}`);

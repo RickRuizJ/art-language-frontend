@@ -140,4 +140,13 @@ export const workbookAPI = {
   togglePublish: (id) => api.post(`/workbooks/${id}/publish`),
 };
 
+
+// ─── Messaging API ────────────────────────────────────────────────────────────
+export const messageAPI = {
+  getInbox: (params) => api.get('/messages/inbox', { params }),
+  getSent: (params) => api.get('/messages/sent', { params }),
+  send: (data) => api.post('/messages', data),
+  markRead: (id) => api.patch(`/messages/${id}/read`),
+};
+
 export default api;

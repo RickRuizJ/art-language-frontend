@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import api from '@/lib/api';
+import api, { messageAPI } from '@/lib/api';
 import Link from 'next/link';
 import {
   BookOpen,
@@ -22,6 +22,8 @@ import {
   RefreshCw,
   GraduationCap,
   TrendingUp,
+  MessageCircle,
+  MailOpen,
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────────────────────────
@@ -77,6 +79,8 @@ export default function StudentDashboard() {
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     if (authLoading) return;
@@ -88,13 +92,37 @@ export default function StudentDashboard() {
     try {
       setLoading(true);
       setError(null);
-      const res = await api.get('/students/dashboard');
-      setData(res.data);
+      const dashboardRes = await api.get('/students/dashboard');
+      setData(dashboardRes.data);
+
+      // Messages are useful but non-critical: a messaging migration/config
+      // problem must never make the student's whole dashboard unusable.
+      try {
+        const messagesRes = await messageAPI.getInbox({ limit: 20 });
+        setMessages(messagesRes.data.data.messages || []);
+        setUnreadCount(messagesRes.data.data.unreadCount || 0);
+      } catch (messageErr) {
+        console.error('Student messages error:', messageErr);
+        setMessages([]);
+        setUnreadCount(0);
+      }
     } catch (err) {
       console.error('Student dashboard error:', err);
       setError('Could not load your dashboard. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const markMessageRead = async (messageId) => {
+    try {
+      await messageAPI.markRead(messageId);
+      setMessages(prev => prev.map(m =>
+        m.id === messageId ? { ...m, isRead: true, readAt: new Date().toISOString() } : m
+      ));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error('Could not mark message as read:', err);
     }
   };
 
@@ -216,6 +244,56 @@ export default function StudentDashboard() {
               Retry
             </button>
           </div>
+        )}
+
+        {/* ── Teacher messages ─────────────────────────────────── */}
+        {messages.length > 0 && (
+          <section className="bg-white rounded-2xl shadow-soft border border-neutral-100 overflow-hidden">
+            <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <MessageCircle className="w-5 h-5 text-primary-600" />
+                <h2 className="font-bold text-neutral-900">Messages from your teacher</h2>
+              </div>
+              {unreadCount > 0 && (
+                <span className="badge badge-info">{unreadCount} unread</span>
+              )}
+            </div>
+            <div className="divide-y divide-neutral-100">
+              {messages.slice(0, 5).map((message) => (
+                <div key={message.id} className={`p-5 ${message.isRead ? 'bg-white' : 'bg-primary-50/40'}`}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <p className="font-semibold text-neutral-900">
+                          {message.sender?.firstName} {message.sender?.lastName}
+                        </p>
+                        {message.group?.name && (
+                          <span className="text-xs text-neutral-400">· {message.group.name}</span>
+                        )}
+                      </div>
+                      {message.subject && (
+                        <p className="text-sm font-semibold text-neutral-700 mb-1">{message.subject}</p>
+                      )}
+                      <p className="text-sm text-neutral-600 whitespace-pre-wrap">{message.body}</p>
+                      <p className="text-xs text-neutral-400 mt-2">
+                        {new Date(message.created_at || message.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                    {!message.isRead && (
+                      <button
+                        onClick={() => markMessageRead(message.id)}
+                        className="btn btn-ghost text-xs flex-shrink-0"
+                        title="Mark as read"
+                      >
+                        <MailOpen className="w-4 h-4" />
+                        Read
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
         )}
 
         {/* ── Stats grid ─────────────────────────────────────── */}

@@ -365,6 +365,13 @@ function WorksheetRow({ worksheet, onDelete, onTogglePublish }) {
         <Link href={`/worksheets/${worksheet.id}`} className="btn btn-ghost">
           <Eye className="w-5 h-5" />
         </Link>
+        <Link
+          href={`/worksheets/${worksheet.id}/edit`}
+          className="btn btn-ghost"
+          title="Edit worksheet"
+        >
+          <Edit className="w-5 h-5" />
+        </Link>
         <button
           onClick={() => onTogglePublish(worksheet.id)}
           className="btn btn-ghost"
