@@ -31,7 +31,7 @@ export default function WorksheetDetailPage() {
   const interactiveQuestions=useMemo(()=> (worksheet?.questions||[]).filter(q=>!['external_link','google_embed'].includes(q.type)),[worksheet]);
   const resource=useMemo(()=> (worksheet?.questions||[]).find(q=>['external_link','google_embed'].includes(q.type)),[worksheet]);
   const isTeacher=['teacher','admin'].includes(user?.role); const isOwner=isTeacher && worksheet?.createdBy===user?.id;
-  const editHref=interactiveQuestions.length ? `/worksheets/builder?id=${worksheet.id}` : `/worksheets/${worksheet.id}/edit`;
+  const editHref=worksheet ? (interactiveQuestions.length ? `/worksheets/builder?id=${worksheet.id}` : `/worksheets/${worksheet.id}/edit`) : '#';
 
   const setAnswer=(id,val)=>setAnswers(a=>({...a,[id]:val}));
   async function submit(){
