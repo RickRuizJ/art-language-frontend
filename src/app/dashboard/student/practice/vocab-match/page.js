@@ -96,7 +96,7 @@ Keep responses SHORT (max 3–4 sentences). Help them understand the word deeply
     setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
     setLoading(true);
     try {
-      const res = await fetch('/api/al-assistant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: [...messages, { role: 'user', content: userMsg }], systemPrompt }) });
+      const res = await fetch('/api/al-assistant', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` }, body: JSON.stringify({ messages: [...messages, { role: 'user', content: userMsg }], systemPrompt }) });
       const data = await res.json();
       setMessages(prev => [...prev, { role: 'assistant', content: data.reply || 'Sorry, try again!' }]);
     } catch { setMessages(prev => [...prev, { role: 'assistant', content: "Couldn't connect." }]); }

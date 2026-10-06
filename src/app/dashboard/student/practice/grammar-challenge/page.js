@@ -108,7 +108,7 @@ Be supportive, never condescending. Use emojis occasionally to feel friendly and
     try {
       const res = await fetch('/api/al-assistant', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` },
         body: JSON.stringify({ messages: [...messages, { role: 'user', content: userMsg }], systemPrompt }),
       });
       const data = await res.json();

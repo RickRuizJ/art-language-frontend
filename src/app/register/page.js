@@ -153,22 +153,7 @@ export default function RegisterPage() {
                 />
               </div>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-2">
-                I am a...
-              </label>
-              <select
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                className="input"
-                required
-              >
-                <option value="student">Student</option>
-                <option value="teacher">Teacher</option>
-              </select>
-            </div>
+            <input type="hidden" name="role" value="student" />
 
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-2">

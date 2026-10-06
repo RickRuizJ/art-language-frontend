@@ -8,6 +8,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 20000,
 });
 
 // ─── Request interceptor ──────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ export const worksheetAPI = {
   delete: (id) => api.delete(`/worksheets/${id}`),
   togglePublish: (id) => api.post(`/worksheets/${id}/publish`),
   upload: (formData) => api.post('/worksheets/upload', formData),
+  saveExternalLink: (data) => api.post('/worksheets/external-link', data),
   saveGoogleLink: (data) => api.post('/worksheets/google-link', data),
 };
 
@@ -117,6 +119,12 @@ export const progressAPI = {
 // ─── User API ─────────────────────────────────────────────────────────────────
 export const userAPI = {
   getAll: (params) => api.get('/users', { params }),
+};
+
+
+// ─── Teacher API ──────────────────────────────────────────────────────────────
+export const teacherAPI = {
+  getDashboardStats: () => api.get('/teachers/dashboard-stats'),
 };
 
 // ─── Material API ─────────────────────────────────────────────────────────────

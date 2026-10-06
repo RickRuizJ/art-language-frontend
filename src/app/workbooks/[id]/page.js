@@ -37,9 +37,7 @@ export default function WorkbookDetailPage() {
       const workbookData = response.data.data.workbook;
       setWorkbook(workbookData);
 
-      // TODO: Backend should return worksheets with the workbook.
-      // GET /api/workbooks/:id should include associated worksheets.
-      setWorksheets([]);
+      setWorksheets(workbookData.worksheets || []);
     } catch (err) {
       console.error('Error fetching workbook:', err);
       setError(err.response?.data?.message || 'Failed to load workbook');

@@ -81,6 +81,7 @@ export default function StudentDashboard() {
   const [error,   setError]   = useState(null);
   const [messages, setMessages] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [messagesLoading, setMessagesLoading] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -89,14 +90,14 @@ export default function StudentDashboard() {
   }, [user, authLoading]);
 
   const fetchDashboard = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const dashboardRes = await api.get('/students/dashboard');
-      setData(dashboardRes.data);
+    setLoading(true);
+    setError(null);
 
-      // Messages are useful but non-critical: a messaging migration/config
-      // problem must never make the student's whole dashboard unusable.
+    // Dashboard data is critical. Messaging is loaded independently so a slow
+    // inbox can never hold the assignments screen hostage.
+    const dashboardPromise = api.get('/students/dashboard');
+    const messagesPromise = (async () => {
+      setMessagesLoading(true);
       try {
         const messagesRes = await messageAPI.getInbox({ limit: 20 });
         setMessages(messagesRes.data.data.messages || []);
@@ -105,13 +106,24 @@ export default function StudentDashboard() {
         console.error('Student messages error:', messageErr);
         setMessages([]);
         setUnreadCount(0);
+      } finally {
+        setMessagesLoading(false);
       }
+    })();
+
+    try {
+      const dashboardRes = await dashboardPromise;
+      setData(dashboardRes.data);
     } catch (err) {
       console.error('Student dashboard error:', err);
-      setError('Could not load your dashboard. Please try again.');
+      setError(err.code === 'ECONNABORTED'
+        ? 'The server took too long to respond. Please try again.'
+        : 'Could not load your dashboard. Please try again.');
     } finally {
       setLoading(false);
     }
+
+    void messagesPromise;
   };
 
   const markMessageRead = async (messageId) => {

@@ -275,7 +275,7 @@ function ALModal({ onClose }) {
     try {
       const res = await fetch('/api/al-assistant', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` },
         body: JSON.stringify({
           messages: [
             ...messages.slice(1).map(m => ({

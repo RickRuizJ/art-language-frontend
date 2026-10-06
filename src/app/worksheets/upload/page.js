@@ -6,15 +6,26 @@ import { worksheetAPI, workbookAPI } from '@/lib/api';
 import Link from 'next/link';
 
 // ─── CONSTANTS ──────────────────────────────────────────────────────────────
-const ALLOWED_EXTENSIONS = '.pdf,.docx,.doc,.png,.jpg,.jpeg,.gif,.webp';
+const ALLOWED_EXTENSIONS = '.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.txt,.csv,.mp3,.m4a,.mp4,.png,.jpg,.jpeg,.gif,.webp';
 const ALLOWED_MIMES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/msword',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.ms-powerpoint',
+  'text/plain','text/csv',
+  'audio/mpeg','audio/mp4','video/mp4',
   'image/png','image/jpeg','image/gif','image/webp',
 ];
 const MAX_SIZE_MB = 10;
-const GOOGLE_PATTERN = /^https:\/\/(docs\.google\.com|sheets\.google\.com|slides\.google\.com)\//i;
+const URL_PATTERN = /^https?:\/\/[^\s]+\.[^\s]+$/i;
+// Se acepta "www.sitio.com/pagina" sin protocolo: se completa con https://.
+const normalizeUrl = (v) => {
+  const t = (v || '').trim();
+  return t && !/^[a-z][a-z0-9+.-]*:/i.test(t) ? `https://${t}` : t;
+};
 
 function formatBytes(b) {
   if (b < 1024) return b + ' B';
@@ -22,12 +33,15 @@ function formatBytes(b) {
   return (b / 1048576).toFixed(1) + ' MB';
 }
 function detectGoogleType(url) {
-  if (url.includes('sheets.google.com')) return 'sheet';
-  if (url.includes('slides.google.com')) return 'slide';
-  return 'doc';
+  const lower = url.toLowerCase();
+  if (lower.includes('/forms/')) return 'form';
+  if (lower.includes('/spreadsheets/') || lower.includes('sheets.google.com')) return 'sheet';
+  if (lower.includes('/presentation/') || lower.includes('slides.google.com')) return 'slide';
+  if (lower.includes('/document/')) return 'doc';
+  return null;
 }
 function googleLabel(t) {
-  return { doc: 'Google Doc', sheet: 'Google Sheet', slide: 'Google Slide' }[t];
+  return { doc: 'Google Doc', sheet: 'Google Sheet', slide: 'Google Slide', form: 'Google Form' }[t] || 'Google link';
 }
 
 // ─── PAGE ───────────────────────────────────────────────────────────────────
@@ -37,7 +51,7 @@ export default function UploadWorksheetPage() {
   const fileInputRef = useRef(null);
 
   // tabs
-  const [tab, setTab] = useState('file'); // 'file' | 'google'
+  const [tab, setTab] = useState('file'); // 'file' | 'link'
 
   // shared metadata
   const [title, setTitle]           = useState('');
@@ -52,8 +66,8 @@ export default function UploadWorksheetPage() {
   const [dragging, setDragging]   = useState(false);
 
   // google state
-  const [googleUrl, setGoogleUrl]   = useState('');
-  const [googleError, setGoogleError] = useState('');
+  const [linkUrl, setLinkUrl]   = useState('');
+  const [linkError, setLinkError] = useState('');
   const [detectedType, setDetectedType] = useState(null);
 
   // workbooks dropdown (lazy-loaded)
@@ -78,8 +92,10 @@ export default function UploadWorksheetPage() {
   const processFile = (f) => {
     setFileError('');
     if (!f) { setFile(null); return; }
-    if (!ALLOWED_MIMES.includes(f.type)) {
-      setFileError('Tipo no permitido. Permitidos: PDF, DOCX, DOC, PNG, JPG, GIF, WEBP');
+    const ext = '.' + (f.name.split('.').pop() || '').toLowerCase();
+    const typeOk = ALLOWED_MIMES.includes(f.type) || ((!f.type || f.type === 'application/octet-stream') && ALLOWED_EXTENSIONS.split(',').includes(ext));
+    if (!typeOk) {
+      setFileError('Tipo no permitido. Permitidos: PDF, Word, Excel, PowerPoint, TXT, CSV, MP3, MP4 e imágenes');
       setFile(null); return;
     }
     if (f.size > MAX_SIZE_MB * 1048576) {
@@ -97,18 +113,22 @@ export default function UploadWorksheetPage() {
   const onDragLeave = (e) => { e.preventDefault(); setDragging(false); };
   const onDrop      = (e) => { e.preventDefault(); setDragging(false); processFile(e.dataTransfer.files?.[0]); };
 
-  // ── google URL live validation ────────────────────────────────────────────
-  const handleGoogleChange = (val) => {
-    setGoogleUrl(val);
-    setGoogleError('');
+  // ── link URL live validation ──────────────────────────────────────────────
+  const handleLinkChange = (val) => {
+    setLinkUrl(val);
+    setLinkError('');
     setDetectedType(null);
     if (!val.trim()) return;
-    if (!GOOGLE_PATTERN.test(val.trim())) {
-      setGoogleError('No es un link válido de Google');
+    if (!URL_PATTERN.test(normalizeUrl(val))) {
+      setLinkError('Ingresa un link válido (por ejemplo https://sitio.com/pagina)');
     } else {
-      const t = detectGoogleType(val.trim());
-      setDetectedType(t);
-      if (!title) setTitle(`Link – ${googleLabel(t)}`);
+      if (/^https:\/\/(docs|sheets|slides)\.google\.com\//i.test(normalizeUrl(val))) {
+        const t = detectGoogleType(normalizeUrl(val));
+        setDetectedType(t);
+        if (t && !title) setTitle(`Link – ${googleLabel(t)}`);
+      } else if (!title) {
+        try { setTitle(new URL(normalizeUrl(val)).hostname.replace(/^www\./, '')); } catch {}
+      }
     }
   };
 
@@ -139,18 +159,18 @@ export default function UploadWorksheetPage() {
     } finally { setLoading(false); }
   };
 
-  // ── submit: google link ───────────────────────────────────────────────────
-  const handleGoogleSubmit = async () => {
+  // ── submit: any external link ─────────────────────────────────────────────
+  const handleLinkSubmit = async () => {
     setSubmitError('');
-    if (!googleUrl.trim())                     { setSubmitError('Por favor pega un link de Google.'); return; }
-    if (!GOOGLE_PATTERN.test(googleUrl.trim())) { setSubmitError('Link de Google inválido.'); return; }
-    if (!title.trim())                         { setSubmitError('El título es obligatorio.'); return; }
+    if (!linkUrl.trim())                  { setSubmitError('Por favor pega un link.'); return; }
+    if (!URL_PATTERN.test(normalizeUrl(linkUrl))) { setSubmitError('Ingresa un link válido (por ejemplo https://sitio.com/pagina).'); return; }
+    if (!title.trim())                    { setSubmitError('El título es obligatorio.'); return; }
 
     setLoading(true);
     try {
-      await worksheetAPI.saveGoogleLink({
+      await worksheetAPI.saveExternalLink({
         title: title.trim(),
-        url: googleUrl.trim(),
+        url: normalizeUrl(linkUrl),
         description: description.trim() || undefined,
         subject: subject.trim() || undefined,
         gradeLevel: gradeLevel.trim() || undefined,
@@ -162,7 +182,7 @@ export default function UploadWorksheetPage() {
     } finally { setLoading(false); }
   };
 
-  const handleSave = () => (tab === 'file') ? handleUploadSubmit() : handleGoogleSubmit();
+  const handleSave = () => (tab === 'file') ? handleUploadSubmit() : handleLinkSubmit();
 
   // ── render ────────────────────────────────────────────────────────────────
   return (
@@ -194,7 +214,7 @@ export default function UploadWorksheetPage() {
         <div className="bg-white rounded-2xl shadow-soft p-1.5 mb-6 flex gap-1.5">
           {[
             { key: 'file',   icon: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12', label: 'Subir Archivo' },
-            { key: 'google', icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1', label: 'Link de Google' },
+            { key: 'link', icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1', label: 'Agregar Link' },
           ].map(({ key, icon, label }) => (
             <button
               key={key}
@@ -224,7 +244,7 @@ export default function UploadWorksheetPage() {
             <div className="card">
               <label className="block text-sm font-medium text-neutral-700 mb-3">
                 Archivo <span className="text-red-500">*</span>
-                <span className="text-neutral-400 font-normal ml-2">PDF, DOCX, DOC, imágenes — máx {MAX_SIZE_MB} MB</span>
+                <span className="text-neutral-400 font-normal ml-2">PDF, Word, Excel, PowerPoint, TXT, CSV, imágenes — máx {MAX_SIZE_MB} MB</span>
               </label>
 
               {/* drop zone */}
@@ -262,7 +282,7 @@ export default function UploadWorksheetPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                     </svg>
                     <p className="text-sm font-medium text-neutral-700">Arrastra & suelta o toca para subir</p>
-                    <p className="text-xs text-neutral-500 mt-1">PDF, DOCX, imágenes</p>
+                    <p className="text-xs text-neutral-500 mt-1">PDF, Word, Excel, PowerPoint, TXT, CSV, imágenes</p>
                   </div>
                 )}
               </div>
@@ -277,26 +297,26 @@ export default function UploadWorksheetPage() {
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
-            TAB: GOOGLE LINK
+            TAB: ANY LINK
             ════════════════════════════════════════════════════════════════ */}
-        {tab === 'google' && (
+        {tab === 'link' && (
           <div className="space-y-6">
             <div className="card">
               <label className="block text-sm font-medium text-neutral-700 mb-1">
-                Link de Google <span className="text-red-500">*</span>
+                Link <span className="text-red-500">*</span>
               </label>
               <p className="text-xs text-neutral-500 mb-3">
-                Pega un link de Google Docs, Sheets o Slides
+                Pega cualquier link web que quieras compartir con tus alumnos
               </p>
               <input
                 type="text"
-                className={`input ${googleError ? 'input-error' : detectedType ? 'border-green-400' : ''}`}
-                placeholder="https://docs.google.com/document/d/..."
-                value={googleUrl}
-                onChange={(e) => handleGoogleChange(e.target.value)}
+                className={`input ${linkError ? 'input-error' : detectedType ? 'border-green-400' : ''}`}
+                placeholder="https://..."
+                value={linkUrl}
+                onChange={(e) => handleLinkChange(e.target.value)}
               />
-              {googleError && <p className="text-red-600 text-xs mt-1.5">{googleError}</p>}
-              {detectedType && !googleError && (
+              {linkError && <p className="text-red-600 text-xs mt-1.5">{linkError}</p>}
+              {detectedType && !linkError && (
                 <div className="flex items-center gap-2 mt-2">
                   <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>

@@ -34,8 +34,12 @@ export const AuthProvider = ({ children }) => {
       setUser(response.data.data.user);
     } catch (error) {
       console.error('Auth check failed:', error);
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      // A 500/timeout must not destroy a valid session. The axios response
+      // interceptor already clears storage for a real 401.
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
       setUser(null);
     } finally {
       setLoading(false);

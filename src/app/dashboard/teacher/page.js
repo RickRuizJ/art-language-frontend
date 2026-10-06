@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { worksheetAPI, groupAPI } from '@/lib/api';
+import { worksheetAPI, groupAPI, teacherAPI } from '@/lib/api';
 import {
   BookOpen, Users, FileText, BarChart3, Plus,
   LogOut, Eye, Edit, Trash2, CheckCircle
@@ -55,9 +55,10 @@ export default function TeacherDashboard() {
 
   const fetchData = async () => {
     try {
-      const [worksheetsRes, groupsRes] = await Promise.all([
+      const [worksheetsRes, groupsRes, statsRes] = await Promise.all([
         worksheetAPI.getAll(),
         groupAPI.getAll(),
+        teacherAPI.getDashboardStats(),
       ]);
 
       const worksheetsData = worksheetsRes.data.data.worksheets;
@@ -66,17 +67,10 @@ export default function TeacherDashboard() {
       setWorksheets(worksheetsData);
       setGroups(groupsData);
 
-      const studentSet = new Set();
-      groupsData.forEach(group => {
-        group.members?.forEach(member => {
-          studentSet.add(member.studentId);
-        });
-      });
-
-      setStats({
+      setStats(statsRes.data.data || {
         totalWorksheets: worksheetsData.length,
         totalGroups: groupsData.length,
-        totalStudents: studentSet.size,
+        totalStudents: 0,
         pendingSubmissions: 0,
       });
     } catch (error) {
@@ -339,6 +333,8 @@ function TabButton({ active, onClick, icon, label }) {
 }
 
 function WorksheetRow({ worksheet, onDelete, onTogglePublish }) {
+  const hasInteractiveQuestions = (worksheet.questions || []).some(q => !['external_link', 'google_embed'].includes(q.type));
+  const editHref = hasInteractiveQuestions ? `/worksheets/builder?id=${worksheet.id}` : `/worksheets/${worksheet.id}/edit`;
   return (
     <div className="card flex items-center justify-between">
       <div className="flex-1">
@@ -366,7 +362,7 @@ function WorksheetRow({ worksheet, onDelete, onTogglePublish }) {
           <Eye className="w-5 h-5" />
         </Link>
         <Link
-          href={`/worksheets/${worksheet.id}/edit`}
+          href={editHref}
           className="btn btn-ghost"
           title="Edit worksheet"
         >
