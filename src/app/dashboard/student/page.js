@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import useAutoRefresh from '@/hooks/useAutoRefresh';
+import { dynamicReadConfig } from '@/lib/fetchWithRetry';
 import { useAuth } from '@/contexts/AuthContext';
 import api, { messageAPI } from '@/lib/api';
 import Link from 'next/link';
@@ -73,73 +74,52 @@ const getStatus = (key) => STATUS[key] || STATUS.pending;
 /* ─────────────────────────────────────────────────────────────
    MAIN PAGE
 ───────────────────────────────────────────────────────────── */
+const uniqueById = (items = []) => [...new Map(items.map(item => [item.id, item])).values()];
+async function loadDashboard({ signal, initial, attempt }) {
+  const response = await api.get('/students/dashboard', dynamicReadConfig({
+    signal, timeout: initial && attempt === 0 ? 45000 : 20000,
+  }));
+  return { ...response.data, assignments: uniqueById(response.data.assignments) };
+}
+async function loadInbox({ signal }) {
+  const response = await messageAPI.getInbox({ limit: 20 }, dynamicReadConfig({ signal }));
+  return { ...response.data.data, messages: uniqueById(response.data.data.messages) };
+}
+
 export default function StudentDashboard() {
-  const { user, logout, loading: authLoading } = useAuth();
-
-  const [data,    setData]    = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [messagesLoading, setMessagesLoading] = useState(false);
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (user) fetchDashboard();
-    else      setLoading(false);
-  }, [user, authLoading]);
-
-  const fetchDashboard = async () => {
-    setLoading(true);
-    setError(null);
-
-    // Dashboard data is critical. Messaging is loaded independently so a slow
-    // inbox can never hold the assignments screen hostage.
-    const dashboardPromise = api.get('/students/dashboard');
-    const messagesPromise = (async () => {
-      setMessagesLoading(true);
-      try {
-        const messagesRes = await messageAPI.getInbox({ limit: 20 });
-        setMessages(messagesRes.data.data.messages || []);
-        setUnreadCount(messagesRes.data.data.unreadCount || 0);
-      } catch (messageErr) {
-        console.error('Student messages error:', messageErr);
-        setMessages([]);
-        setUnreadCount(0);
-      } finally {
-        setMessagesLoading(false);
-      }
-    })();
-
-    try {
-      const dashboardRes = await dashboardPromise;
-      setData(dashboardRes.data);
-    } catch (err) {
-      console.error('Student dashboard error:', err);
-      setError(err.code === 'ECONNABORTED'
-        ? 'The server took too long to respond. Please try again.'
-        : 'Could not load your dashboard. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-
-    void messagesPromise;
-  };
+  const { user, logout, loading: authLoading, authError, retryAuth } = useAuth();
+  const enabled = !authLoading && user?.role === 'student';
+  const dashboard = useAutoRefresh(loadDashboard, { enabled, resourceKey: user?.id });
+  const inbox = useAutoRefresh(loadInbox, { enabled, resourceKey: user?.id });
+  const { data, error, updating, loading } = dashboard;
+  const messages = inbox.data?.messages || [];
+  const unreadCount = inbox.data?.unreadCount || 0;
+  const fetchDashboard = () => { void dashboard.refresh(); void inbox.refresh(); };
 
   const markMessageRead = async (messageId) => {
     try {
       await messageAPI.markRead(messageId);
-      setMessages(prev => prev.map(m =>
-        m.id === messageId ? { ...m, isRead: true, readAt: new Date().toISOString() } : m
-      ));
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      inbox.setData(previous => {
+        if (!previous) return previous;
+        const wasUnread = previous.messages.some(m => m.id === messageId && !m.isRead);
+        return { ...previous,
+          messages: previous.messages.map(m => m.id === messageId
+            ? { ...m, isRead: true, readAt: new Date().toISOString() } : m),
+          unreadCount: Math.max(0, previous.unreadCount - (wasUnread ? 1 : 0)),
+        };
+      });
     } catch (err) {
       console.error('Could not mark message as read:', err);
     }
   };
 
+  if (!user && authError) return <main className="max-w-lg mx-auto p-6 space-y-4">
+    <p role="status">{authError}</p>
+    <button className="btn btn-outline" onClick={retryAuth}>Try again</button>
+  </main>;
+
   /* ── Skeleton loader ── */
-  if (authLoading || loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-neutral-50">
         <div className="h-16 bg-white border-b border-neutral-200 shadow-soft" />
@@ -243,22 +223,11 @@ export default function StudentDashboard() {
           )}
         </div>
 
-        {/* ── Error banner ───────────────────────────────────── */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-            <p className="text-sm text-red-700 flex-1">{error}</p>
-            <button
-              onClick={fetchDashboard}
-              className="flex items-center gap-1.5 text-sm font-semibold text-red-600 hover:text-red-800 flex-shrink-0"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Retry
-            </button>
-          </div>
-        )}
-
         {/* ── Teacher messages ─────────────────────────────────── */}
+        {inbox.error && <p role="status" className="text-sm text-neutral-500">
+          We couldn't refresh your messages. <button className="underline" onClick={inbox.refresh}>Retry messages</button>
+        </p>}
+        {inbox.loading && <p role="status" className="text-sm text-neutral-500">Loading messages...</p>}
         {messages.length > 0 && (
           <section className="bg-white rounded-2xl shadow-soft border border-neutral-100 overflow-hidden">
             <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between gap-3">
@@ -365,16 +334,24 @@ export default function StudentDashboard() {
 
         {/* ── Assignments ────────────────────────────────────── */}
         <section>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h2 className="text-lg sm:text-xl font-bold text-neutral-900">
               My Assignments
             </h2>
-            <span className="text-sm text-neutral-400 font-medium tabular-nums">
-              {assignments.length} total
-            </span>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm text-neutral-400 font-medium tabular-nums">{assignments.length} total</span>
+              {updating && <span role="status" className="text-sm text-neutral-500">Updating...</span>}
+              <button onClick={fetchDashboard} disabled={updating} className="btn btn-ghost text-sm py-2 px-3">
+                <RefreshCw className={`w-4 h-4 ${updating ? 'animate-spin' : ''}`} />Refresh
+              </button>
+            </div>
           </div>
 
-          {assignments.length === 0 ? (
+          {error && <p role="status" className="mb-3 text-sm text-neutral-600">
+            We couldn't refresh your assignments. Please try again.
+          </p>}
+          {!data && loading ? <p className="text-sm text-neutral-500">Loading assignments. The server may take a moment to respond.</p>
+          : !data && error ? null : assignments.length === 0 ? (
             <EmptyAssignments />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

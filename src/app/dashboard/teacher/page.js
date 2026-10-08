@@ -1,4 +1,5 @@
 'use client';
+import AnalyticsPanel from '@/components/AnalyticsPanel';
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -286,17 +287,7 @@ export default function TeacherDashboard() {
           </div>
         )}
 
-        {activeTab === 'analytics' && (
-          <div className="card text-center py-12">
-            <BarChart3 className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
-            <h4 className="text-xl font-semibold text-neutral-700 mb-2">
-              Analytics Coming Soon
-            </h4>
-            <p className="text-neutral-500">
-              Detailed analytics and insights will be available here
-            </p>
-          </div>
-        )}
+        {activeTab === 'analytics' && <AnalyticsPanel/>}
       </div>
     </div>
   );

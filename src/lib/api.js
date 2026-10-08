@@ -51,7 +51,7 @@ api.interceptors.response.use(
 export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
   register: (userData) => api.post('/auth/register', userData),
-  getMe: () => api.get('/auth/me'),
+  getMe: (config) => api.get('/auth/me', config),
   refreshToken: () => api.post('/auth/refresh'),
 };
 
@@ -73,7 +73,7 @@ export const worksheetAPI = {
 export const submissionAPI = {
   submit: (data) => api.post('/submissions', data),
   getOne: (id) => api.get(`/submissions/${id}`),
-  getByStudent: (studentId) => api.get(`/submissions/student/${studentId}`),
+  getByStudent: (studentId, params) => api.get(`/submissions/student/${studentId}`, { params }),
   getByWorksheet: (worksheetId) => api.get(`/submissions/worksheet/${worksheetId}`),
   grade: (id, data) => api.put(`/submissions/${id}/grade`, data),
 };
@@ -151,7 +151,7 @@ export const workbookAPI = {
 
 // ─── Messaging API ────────────────────────────────────────────────────────────
 export const messageAPI = {
-  getInbox: (params) => api.get('/messages/inbox', { params }),
+  getInbox: (params, config = {}) => api.get('/messages/inbox', { ...config, params: { ...params, ...config.params } }),
   getSent: (params) => api.get('/messages/sent', { params }),
   send: (data) => api.post('/messages', data),
   markRead: (id) => api.patch(`/messages/${id}/read`),
