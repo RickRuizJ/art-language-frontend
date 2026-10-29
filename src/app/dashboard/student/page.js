@@ -1,5 +1,6 @@
 'use client';
 
+import AcademicHistory from '@/components/AcademicHistory';
 import useAutoRefresh from '@/hooks/useAutoRefresh';
 import { dynamicReadConfig } from '@/lib/fetchWithRetry';
 import { useAuth } from '@/contexts/AuthContext';
@@ -301,13 +302,15 @@ export default function StudentDashboard() {
             bgCls="bg-amber-50"
           />
           <StatCard
-            label="Avg. Score"
+            label="Automatic average"
             value={stats.avgScore !== null ? `${stats.avgScore}%` : '—'}
             Icon={TrendingUp}
             iconCls="text-primary-600"
             bgCls="bg-primary-50"
           />
         </div>
+
+        <AcademicHistory/>
 
         {/* ── Practice Hub CTA ───────────────────────────────── */}
         <Link href="/dashboard/student/practice-hub" className="block group">

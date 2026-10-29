@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  async headers(){return ['/reset-password','/change-password'].map(source=>({source,headers:[{key:'Referrer-Policy',value:'no-referrer'}]}));},
   images: {
     domains: ['localhost', 'res.cloudinary.com'],
     unoptimized: true,
@@ -29,4 +30,12 @@ const nextConfig = {
   //   NEXT_PUBLIC_API_URL = https://art-language-backend.onrender.com/api
 }
 
-module.exports = nextConfig
+module.exports = phase => {
+  if(phase === require('next/constants').PHASE_PRODUCTION_BUILD) {
+    const value=process.env.NEXT_PUBLIC_API_URL;
+    if(!value) throw new Error('Set NEXT_PUBLIC_API_URL before building the frontend.');
+    const parsed=new URL(value);
+    if(!(parsed.protocol==='https:'||(parsed.protocol==='http:'&&['localhost','127.0.0.1'].includes(parsed.hostname))) || parsed.username || parsed.password || parsed.search || parsed.hash || !/\/api\/?$/.test(parsed.pathname)) throw new Error('NEXT_PUBLIC_API_URL must be the HTTPS backend URL ending in /api.');
+  }
+  return nextConfig;
+};

@@ -194,7 +194,7 @@ export default function GroupDetailPage() {
   };
 
   const handleDeleteGroup = async () => {
-    if (!confirm('Are you sure you want to delete this group? This cannot be undone.')) return;
+    if (!confirm('Archive this group? Active assignments will close; student accounts, memberships and academic history will be preserved.')) return;
 
     try {
       await groupAPI.delete(params.id);

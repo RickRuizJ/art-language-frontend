@@ -1,11 +1,6 @@
 import { NextResponse } from 'next/server';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const WINDOW_MS = 10 * 60 * 1000;
-const MAX_REQUESTS = 20;
-const buckets = globalThis.__alRateBuckets || new Map();
-globalThis.__alRateBuckets = buckets;
-
 const SYSTEM_PROMPT =
   'You are AL, a friendly and encouraging English language learning assistant ' +
   'for students at Art & Language Campus. Help students with grammar, vocabulary, ' +
@@ -15,14 +10,16 @@ const SYSTEM_PROMPT =
 async function verifySession(request) {
   const auth = request.headers.get('authorization') || '';
   if (!auth.startsWith('Bearer ')) return null;
-  const apiBase = process.env.NEXT_PUBLIC_API_URL;
+  const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/,'');
   if (!apiBase) return null;
   try {
-    const res = await fetch(`${apiBase}/auth/me`, {
+    const res = await fetch(`${apiBase}/auth/assistant-access`, {
+      method:'POST',
       headers: { Authorization: auth },
       cache: 'no-store',
       signal: AbortSignal.timeout(8000),
     });
+    if(res.status===429)return {limited:true};
     if (!res.ok) return null;
     const data = await res.json();
     return data?.data?.user || null;
@@ -31,22 +28,15 @@ async function verifySession(request) {
   }
 }
 
-function allowedByRateLimit(userId) {
-  const now = Date.now();
-  const bucket = buckets.get(userId) || { start: now, count: 0 };
-  if (now - bucket.start > WINDOW_MS) { bucket.start = now; bucket.count = 0; }
-  bucket.count += 1;
-  buckets.set(userId, bucket);
-  return bucket.count <= MAX_REQUESTS;
-}
-
 export async function POST(request) {
   try {
     const user = await verifySession(request);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    if (!allowedByRateLimit(user.id)) return NextResponse.json({ error: 'Too many requests. Try again later.' }, { status: 429 });
+    if (user.limited) return NextResponse.json({ error: 'Too many requests. Try again later.' }, { status: 429 });
 
-    const body = await request.json();
+    if(Number(request.headers.get('content-length')||0)>32768)return NextResponse.json({error:'Message is too large.'},{status:413});
+    const raw=await request.text();if(new TextEncoder().encode(raw).length>32768)return NextResponse.json({error:'Message is too large.'},{status:413});
+    const body = JSON.parse(raw);
     const messages = Array.isArray(body.messages) ? body.messages.slice(-12) : [];
     if (!messages.length) return NextResponse.json({ error: 'Invalid messages format' }, { status: 400 });
 

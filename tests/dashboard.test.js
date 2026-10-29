@@ -1,6 +1,7 @@
 import { act, render, screen, fireEvent } from '@testing-library/react';
 import Dashboard from '@/app/dashboard/student/page';
 import api, { messageAPI } from '@/lib/api';
+jest.mock('@/components/AcademicHistory',()=>({__esModule:true,default:()=> <div>Academic history component</div>}));
 jest.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user:{id:'s',firstName:'Ana',role:'student'},loading:false,logout:jest.fn() }) }));
 jest.mock('@/lib/api', () => ({ __esModule:true,default:{get:jest.fn()},messageAPI:{getInbox:jest.fn(),markRead:jest.fn()} }));
 jest.mock('next/link', () => ({ __esModule:true,default:({children,...props}) => <a {...props}>{children}</a> }));

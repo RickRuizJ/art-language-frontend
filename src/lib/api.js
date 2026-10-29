@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace(/\/+$/,'');
 
 // Create axios instance
 const api = axios.create({
@@ -38,11 +38,12 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && typeof window !== 'undefined') {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      const publicPaths = ['/login', '/register', '/'];
+      const publicPaths = ['/login', '/register', '/', '/forgot-password', '/reset-password', '/change-password'];
       if (!publicPaths.includes(window.location.pathname)) {
         window.location.href = '/login';
       }
     }
+    if(error.response?.status===403 && error.response?.data?.code==='PASSWORD_CHANGE_REQUIRED' && typeof window!=='undefined') window.location.href='/change-password';
     return Promise.reject(error);
   }
 );
@@ -53,6 +54,9 @@ export const authAPI = {
   register: (userData) => api.post('/auth/register', userData),
   getMe: (config) => api.get('/auth/me', config),
   refreshToken: () => api.post('/auth/refresh'),
+  changePassword: (currentPassword,password) => api.post('/auth/change-password',{currentPassword,password}),
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (token, password) => api.post('/auth/reset-password', { token, password }),
 };
 
 // ─── Worksheet API ────────────────────────────────────────────────────────────
@@ -88,6 +92,7 @@ export const groupAPI = {
   delete: (id) => api.delete(`/groups/${id}`),
   getAvailableStudents: () => api.get('/groups/available-students'),
   joinWithCode: (joinCode) => api.post('/groups/join', { joinCode }),
+  rotateRegistrationCode: groupId => api.post(`/groups/${groupId}/registration-code/rotate`),
 };
 
 // ─── Assignment API ───────────────────────────────────────────────────────────
@@ -119,6 +124,25 @@ export const progressAPI = {
 // ─── User API ─────────────────────────────────────────────────────────────────
 export const userAPI = {
   getAll: (params) => api.get('/users', { params }),
+};
+export const managementAPI = {
+  profile: id => api.get(`/teachers/students/${id}/profile`),
+  getStudents: () => api.get('/manage-students'),
+  createStudent: data => api.post('/manage-students', data),
+  updateStudent: (id, data) => api.patch(`/manage-students/${id}`, data),
+  requestReset: id => api.post(`/manage-students/${id}/password-reset`),
+  setPassword: (id, password) => api.post(`/manage-students/${id}/set-password`, { password }),
+  addToGroup: (id, groupId) => api.post(`/manage-students/${id}/groups/${groupId}`),
+  removeFromGroup: (id, groupId) => api.delete(`/manage-students/${id}/groups/${groupId}`),
+};
+export const manualGradeAPI = {
+  list: params => api.get('/manual-grades', { params }),
+  create: data => api.post('/manual-grades', data),
+  update: (id, data) => api.patch(`/manual-grades/${id}`, data),
+  archive: (id,data) => api.delete(`/manual-grades/${id}`,{data}),
+  options: groupId => api.get('/manual-grades/options',{params:{groupId}}),
+  export: params => api.get('/manual-grades/export',{params,responseType:'blob'}),
+  history: id => api.get(`/manual-grades/${id}/history`),
 };
 
 

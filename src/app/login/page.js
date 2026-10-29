@@ -143,14 +143,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Demo Credentials */}
-          <div className="mt-8 p-4 rounded-xl bg-accent-50 border border-accent-200">
-            <p className="text-sm font-semibold text-accent-900 mb-2">Demo Credentials:</p>
-            <div className="text-xs text-accent-800 space-y-1">
-              <p><strong>Teacher:</strong> teacher@artandlanguage.com / Teacher123!</p>
-              <p><strong>Student:</strong> student@artandlanguage.com / Student123!</p>
-            </div>
-          </div>
+          <p className="mt-5 text-center text-sm"><Link href="/forgot-password" className="text-primary-700 underline font-semibold">Forgot password?</Link></p>
         </div>
       </div>
     </div>

@@ -106,7 +106,7 @@ export const AuthProvider = ({ children }) => {
       // which skipped the main student dashboard entirely.
       // Now students land on /dashboard/student (their proper dashboard),
       // which has a prominent Practice Hub button to navigate further.
-      const dashboardPath = user.role === 'student'
+      const dashboardPath = user.mustChangePassword ? '/change-password' : user.role === 'student'
         ? '/dashboard/student'
         : '/dashboard/teacher';
       router.push(dashboardPath);
@@ -131,7 +131,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
 
       // BUG 2 FIX: same redirect fix for registration flow.
-      const dashboardPath = user.role === 'student'
+      const dashboardPath = user.mustChangePassword ? '/change-password' : user.role === 'student'
         ? '/dashboard/student'
         : '/dashboard/teacher';
       router.push(dashboardPath);
@@ -143,6 +143,15 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const changePassword = async(currentPassword,password) => {
+    cancelValidation();
+    try {
+      const response=await authAPI.changePassword(currentPassword,password);
+      const {user,token}=response.data.data;
+      localStorage.setItem('token',token);localStorage.setItem('user',JSON.stringify(user));setUser(user);setAuthError(null);
+      router.push(user.role==='student'?'/dashboard/student':'/dashboard/teacher');return {success:true};
+    }catch(error){return {success:false,message:error.response?.data?.message||'Could not change password.'};}
+  };
   const logout = () => {
     cancelValidation();
     setAuthError(null);
@@ -160,6 +169,7 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    changePassword,
     isAuthenticated: !!user,
     isStudent:       user?.role === 'student',
     isTeacher:       user?.role === 'teacher',
