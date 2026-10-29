@@ -1,4 +1,5 @@
 'use client';
+import StudentAccess from '@/components/StudentAccess';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
@@ -251,7 +252,7 @@ function ResultsScreen({ score, correctCount, total, meta, onReplay }) {
 }
 
 // ── Main Game ─────────────────────────────────────────────────────────────────
-export default function GrammarChallenge() {
+function GrammarChallenge() {
   const [level, setLevel] = useState(DEFAULT_LEVEL);
   const [questions, setQuestions] = useState([]);
   const [idx, setIdx] = useState(0);
@@ -442,3 +443,5 @@ export default function GrammarChallenge() {
     </div>
   );
 }
+
+export default function GuardedStudentPage(){return <StudentAccess><GrammarChallenge/></StudentAccess>;}

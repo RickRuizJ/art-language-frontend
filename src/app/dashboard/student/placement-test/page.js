@@ -1,4 +1,5 @@
 'use client';
+import StudentAccess from '@/components/StudentAccess';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
@@ -49,7 +50,7 @@ function calcLevel(score, total) {
 /* ══════════════════════════════════════════════════════════════
    MAIN PAGE
 ══════════════════════════════════════════════════════════════ */
-export default function PlacementTestPage() {
+function PlacementTestPage() {
   // phase: 'welcome' | 'test' | 'result'
   const [phase, setPhase]             = useState('welcome');
   const [qIndex, setQIndex]           = useState(0);
@@ -283,3 +284,5 @@ function SpeechBubble({ message }) {
     </div>
   );
 }
+
+export default function GuardedStudentPage(){return <StudentAccess><PlacementTestPage/></StudentAccess>;}

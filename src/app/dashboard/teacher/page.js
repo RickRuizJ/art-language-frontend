@@ -1,5 +1,6 @@
 'use client';
 import AnalyticsPanel from '@/components/AnalyticsPanel';
+import StudentManagement from '@/components/StudentManagement';
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -181,7 +182,7 @@ export default function TeacherDashboard() {
 
         {/* Tabs */}
         <div className="bg-white rounded-2xl shadow-soft p-2 mb-6">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <TabButton
               active={activeTab === 'worksheets'}
               onClick={() => setActiveTab('worksheets')}
@@ -193,6 +194,12 @@ export default function TeacherDashboard() {
               onClick={() => setActiveTab('groups')}
               icon={<Users className="w-5 h-5" />}
               label="Groups"
+            />
+            <TabButton
+              active={activeTab === 'students'}
+              onClick={() => setActiveTab('students')}
+              icon={<Users className="w-5 h-5" />}
+              label="Students"
             />
             <TabButton
               active={activeTab === 'analytics'}
@@ -287,6 +294,7 @@ export default function TeacherDashboard() {
           </div>
         )}
 
+        {activeTab === 'students' && <StudentManagement onChanged={fetchData}/>}
         {activeTab === 'analytics' && <AnalyticsPanel/>}
       </div>
     </div>

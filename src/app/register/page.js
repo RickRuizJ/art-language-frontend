@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import {passwordError} from '@/lib/passwordRules';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { BookOpen, Mail, Lock, User, AlertCircle } from 'lucide-react';
@@ -14,6 +15,8 @@ export default function RegisterPage() {
     firstName: '',
     lastName: '',
     role: 'student',
+    registrationCode: '',
+    teacherAuthorization: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,8 +30,8 @@ export default function RegisterPage() {
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (passwordError(formData.password)) {
+      setError(passwordError(formData.password));
       return;
     }
 
@@ -105,6 +108,18 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            <fieldset className="space-y-2">
+              <legend className="block text-sm font-semibold mb-2">Account type</legend>
+              <div className="grid grid-cols-2 gap-3">
+                <button type="button" onClick={() => setFormData(d => ({ ...d, role: 'student' }))} className={`p-3 rounded-xl border-2 ${formData.role === 'student' ? 'border-primary-500 bg-primary-50' : 'border-neutral-200'}`}>Student</button>
+                <button type="button" onClick={() => setFormData(d => ({ ...d, role: 'teacher' }))} className={`p-3 rounded-xl border-2 ${formData.role === 'teacher' ? 'border-primary-500 bg-primary-50' : 'border-neutral-200'}`}>Teacher</button>
+              </div>
+            </fieldset>
+            {formData.role === 'student' ? (
+              <div><label htmlFor="registrationCode" className="block text-sm font-medium mb-2">Registration code from your teacher</label><input id="registrationCode" className="input" type="text" name="registrationCode" autoComplete="off" maxLength={8} value={formData.registrationCode} onChange={handleChange} placeholder="Group code" required /></div>
+            ) : (
+              <div><label htmlFor="teacherAuthorization" className="block text-sm font-medium mb-2">Teacher authorization password</label><input id="teacherAuthorization" className="input" type="password" name="teacherAuthorization" autoComplete="off" value={formData.teacherAuthorization} onChange={handleChange} placeholder="Authorization password" required /></div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-2">
@@ -153,7 +168,7 @@ export default function RegisterPage() {
                 />
               </div>
             </div>
-            <input type="hidden" name="role" value="student" />
+
 
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-2">

@@ -1,4 +1,5 @@
 'use client';
+import StudentAccess from '@/components/StudentAccess';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
@@ -186,7 +187,7 @@ function ResultsScreen({ score, accuracy, mins, secs, meta, onReplay }) {
 }
 
 // ── Main Game ─────────────────────────────────────────────────────────────────
-export default function VocabMatchGame() {
+function VocabMatchGame() {
   const [level, setLevel] = useState(DEFAULT_LEVEL);
   const [pairs, setPairs] = useState([]);
   const [words, setWords] = useState([]);
@@ -440,3 +441,5 @@ export default function VocabMatchGame() {
     </div>
   );
 }
+
+export default function GuardedStudentPage(){return <StudentAccess><VocabMatchGame/></StudentAccess>;}
