@@ -1,371 +1,163 @@
 'use client';
-
-import { useState, useRef, useEffect } from 'react';
+import StudentAccess from '@/components/StudentAccess';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import {
-  ArrowLeft, Zap, BookOpen, PenTool, Headphones,
-  Star, Lock, ChevronRight, Flame, Trophy, X, Send
-} from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookOpen, PenTool, Type, Headphones,
+  Bot, Lock, GraduationCap, BarChart3, X, Send,
+  ClipboardCheck } from 'lucide-react';
 
 const LEVELS = [
-  {
-    id: 'A1', label: 'A1', name: 'Beginner', emoji: '🌱',
-    color: '#22c55e', bg: '#f0fdf4', border: '#86efac', ring: '#22c55e',
-    gradient: 'from-green-400 to-emerald-500',
-    description: 'Start your journey', unlocked: true, xp: 240, maxXp: 300,
-  },
-  {
-    id: 'A2', label: 'A2', name: 'Elementary', emoji: '🌿',
-    color: '#16a34a', bg: '#f0fdf4', border: '#4ade80', ring: '#16a34a',
-    gradient: 'from-emerald-500 to-teal-500',
-    description: 'Build your foundation', unlocked: true, xp: 120, maxXp: 300,
-  },
-  {
-    id: 'B1', label: 'B1', name: 'Intermediate', emoji: '💧',
-    color: '#3b82f6', bg: '#eff6ff', border: '#93c5fd', ring: '#3b82f6',
-    gradient: 'from-blue-400 to-blue-600',
-    description: 'Gain real confidence', unlocked: true, xp: 60, maxXp: 300,
-  },
-  {
-    id: 'B2', label: 'B2', name: 'Upper-Intermediate', emoji: '🌊',
-    color: '#1d4ed8', bg: '#eff6ff', border: '#60a5fa', ring: '#1d4ed8',
-    gradient: 'from-blue-600 to-indigo-600',
-    description: 'Express yourself freely', unlocked: false, xp: 0, maxXp: 300,
-  },
-  {
-    id: 'C1', label: 'C1', name: 'Advanced', emoji: '⚡',
-    color: '#7c3aed', bg: '#faf5ff', border: '#c4b5fd', ring: '#7c3aed',
-    gradient: 'from-violet-500 to-purple-700',
-    description: 'Master English', unlocked: false, xp: 0, maxXp: 300,
-  },
+  { id: 'A1', name: 'Beginner', description: 'Build a strong foundation', unlocked: true },
+  { id: 'A2', name: 'Elementary', description: 'Develop everyday English', unlocked: true },
+  { id: 'B1', name: 'Intermediate', description: 'Practice with confidence', unlocked: true },
+  { id: 'B2', name: 'Upper-intermediate', description: 'Coming soon', unlocked: false },
+  { id: 'C1', name: 'Advanced', description: 'Coming soon', unlocked: false },
 ];
-
 const SKILLS = [
-  { id: 'vocabulary', label: 'Vocabulary', icon: BookOpen, path: '/dashboard/student/practice/vocab-match' },
-  { id: 'grammar',    label: 'Grammar',    icon: PenTool,  path: '/dashboard/student/practice/grammar-challenge' },
-  { id: 'spelling',   label: 'Spelling',   icon: Zap,      path: '/dashboard/student/practice/spelling-challenge' },
-  { id: 'listening',  label: 'Listening',  icon: Headphones, path: '/dashboard/student/practice/listening', soon: true },
+  { label: 'Vocabulary', detail: 'Words, meaning and context', Icon: BookOpen, path: '/dashboard/student/practice/vocab-match' },
+  { label: 'Grammar', detail: 'Structures in everyday English', Icon: PenTool, path: '/dashboard/student/practice/grammar-challenge' },
+  { label: 'Spelling', detail: 'Accuracy and word recognition', Icon: Type, path: '/dashboard/student/practice/spelling-challenge' },
+  { label: 'Listening', detail: 'Audio activities', Icon: Headphones, soon: true },
 ];
 
-export default function PracticeHub() {
+function PracticeHub() {
   const [activeLevel, setActiveLevel] = useState('A1');
-  const [alOpen, setAlOpen]           = useState(false);
-  const level   = LEVELS.find(l => l.id === activeLevel);
-  const totalXp = LEVELS.reduce((s, l) => s + l.xp, 0);
-  const streak  = 7;
-
+  const [alOpen, setAlOpen] = useState(false);
+  const level = LEVELS.find(item => item.id === activeLevel) || LEVELS[0];
   return (
-    <>
-      <div style={{ minHeight: '100vh', background: '#fafaf9', fontFamily: "'Nunito', 'Segoe UI', sans-serif" }}>
-
-        {/* Top Nav */}
-        <header style={{ background: '#fff', borderBottom: '2px solid #f3f4f6', position: 'sticky', top: 0, zIndex: 50 }}>
-          <div style={{ maxWidth: 900, margin: '0 auto', padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Link href="/dashboard/student" style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#6b7280', textDecoration: 'none', fontWeight: 600, fontSize: 15 }}>
-              <ArrowLeft size={18} /> Dashboard
-            </Link>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-1px', color: '#111' }}>Practice</span>
-              <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-1px', color: '#7c3aed' }}>Hub</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#fff7ed', borderRadius: 999, padding: '5px 12px', border: '2px solid #fed7aa' }}>
-                <Flame size={16} color="#f97316" fill="#f97316" />
-                <span style={{ fontWeight: 800, fontSize: 14, color: '#ea580c' }}>{streak}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#fefce8', borderRadius: 999, padding: '5px 12px', border: '2px solid #fde68a' }}>
-                <Trophy size={16} color="#ca8a04" />
-                <span style={{ fontWeight: 800, fontSize: 14, color: '#92400e' }}>{totalXp} XP</span>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
-
-          {/* Hero */}
-          <div style={{ marginBottom: 36, textAlign: 'center' }}>
-            <h1 style={{ fontSize: 34, fontWeight: 900, color: '#111827', margin: '0 0 8px', letterSpacing: '-0.5px' }}>
-              Choose your level 🎯
-            </h1>
-            <p style={{ color: '#6b7280', fontSize: 16, margin: 0 }}>
-              Pick a CEFR level and start practicing. Your progress is saved automatically.
-            </p>
-          </div>
-
-          {/* Level Pills */}
-          <div style={{ display: 'flex', gap: 10, marginBottom: 32, justifyContent: 'center', flexWrap: 'wrap' }}>
-            {LEVELS.map(lv => (
-              <button
-                key={lv.id}
-                onClick={() => lv.unlocked && setActiveLevel(lv.id)}
-                style={{
-                  padding: '10px 20px', borderRadius: 999,
-                  border: `2.5px solid ${activeLevel === lv.id ? lv.color : lv.unlocked ? lv.border : '#e5e7eb'}`,
-                  background: activeLevel === lv.id ? lv.color : lv.unlocked ? lv.bg : '#f9fafb',
-                  color: activeLevel === lv.id ? '#fff' : lv.unlocked ? lv.color : '#9ca3af',
-                  fontWeight: 800, fontSize: 14,
-                  cursor: lv.unlocked ? 'pointer' : 'not-allowed',
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  transition: 'all 0.15s ease',
-                  transform: activeLevel === lv.id ? 'scale(1.06)' : 'scale(1)',
-                  boxShadow: activeLevel === lv.id ? `0 4px 14px ${lv.color}55` : 'none',
-                }}
-              >
-                <span>{lv.emoji}</span>
-                {lv.id}
-                {!lv.unlocked && <Lock size={12} />}
-              </button>
-            ))}
-          </div>
-
-          {/* Active Level Card */}
-          <div style={{ background: '#fff', borderRadius: 24, border: `2px solid ${level.border}`, padding: 28, marginBottom: 28, boxShadow: `0 8px 32px ${level.color}18` }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                  <span style={{ fontSize: 32 }}>{level.emoji}</span>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                      <span style={{ fontSize: 28, fontWeight: 900, color: '#111', letterSpacing: '-0.5px' }}>{level.id}</span>
-                      <span style={{ fontSize: 18, fontWeight: 700, color: '#6b7280' }}>{level.name}</span>
-                    </div>
-                    <p style={{ margin: 0, fontSize: 14, color: '#9ca3af', fontWeight: 600 }}>{level.description}</p>
-                  </div>
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 22, fontWeight: 900, color: level.color }}>{level.xp}</div>
-                <div style={{ fontSize: 12, color: '#9ca3af', fontWeight: 700 }}>/ {level.maxXp} XP</div>
-              </div>
-            </div>
-            <div style={{ background: '#f3f4f6', borderRadius: 999, height: 10, overflow: 'hidden', marginBottom: 6 }}>
-              <div style={{ height: '100%', width: `${(level.xp / level.maxXp) * 100}%`, background: `linear-gradient(90deg, ${level.color}, ${level.color}99)`, borderRadius: 999, transition: 'width 0.6s ease' }} />
-            </div>
-            <div style={{ fontSize: 12, color: '#9ca3af', fontWeight: 600 }}>{level.maxXp - level.xp} XP to next milestone</div>
-          </div>
-
-          {/* ── PLACEMENT TEST CARD ── */}
-          <Link href="/dashboard/student/placement-test" style={{ textDecoration: 'none', display: 'block', marginBottom: 20 }}>
-            <div
-              style={{
-                background: 'linear-gradient(135deg, #0f0a1e 0%, #1a0d3b 60%, #0d1a3b 100%)',
-                border: '2px solid rgba(139,92,246,0.5)',
-                borderRadius: 24,
-                padding: '22px 26px',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20,
-                boxShadow: '0 8px 32px rgba(124,58,237,0.25)',
-                transition: 'all 0.2s ease',
-                position: 'relative', overflow: 'hidden',
-                cursor: 'pointer',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(124,58,237,0.45)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(124,58,237,0.25)'; }}
-            >
-              {/* Decorative stars */}
-              {[[12,20],[80,35],[55,70],[92,60],[30,80],[70,15]].map(([x,y],i) => (
-                <div key={i} style={{ position:'absolute', left:`${x}%`, top:`${y}%`, width: i%2?2:1.5, height: i%2?2:1.5, borderRadius:'50%', background:'white', opacity:0.45, pointerEvents:'none' }} />
-              ))}
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-                {/* AL mini icon */}
-                <div style={{
-                  width: 54, height: 54, borderRadius: '50%', flexShrink: 0,
-                  background: 'linear-gradient(135deg, #7c3aed, #3b82f6)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 26,
-                  boxShadow: '0 0 20px rgba(124,58,237,0.6)',
-                }}>🤖</div>
-
-                <div>
-                  <div style={{ fontWeight: 900, fontSize: 17, color: '#f3f4f6', letterSpacing: '-0.3px' }}>
-                    Placement Test
-                  </div>
-                  <div style={{ fontSize: 13, color: '#a78bfa', fontWeight: 700, marginTop: 2 }}>
-                    Discover your CEFR level · A1 to B2
-                  </div>
-                </div>
-              </div>
-
-              <div style={{
-                background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
-                color: '#fff', borderRadius: 12,
-                padding: '10px 22px', fontWeight: 900, fontSize: 14,
-                flexShrink: 0,
-                boxShadow: '0 4px 14px rgba(124,58,237,0.5)',
-              }}>
-                Start →
-              </div>
-            </div>
+    <div className="campus-page">
+      <header className="campus-topbar sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-[76px] flex items-center justify-between gap-4">
+          <Link href="/dashboard/student" className="inline-flex items-center gap-2 text-sm font-semibold text-secondary-800 hover:text-primary-700">
+            <ArrowLeft className="w-4 h-4"/> <span>My Dashboard</span>
           </Link>
+          <div className="inline-flex items-center gap-3">
+            <span className="campus-brand-mark !w-9 !h-9"><BookOpen className="w-4 h-4"/></span>
+            <div className="hidden sm:block"><p className="font-bold text-secondary-900 text-sm">Art &amp; Language</p><p className="text-xs text-neutral-500">Practice Hub</p></div>
+          </div>
+          <button type="button" onClick={() => setAlOpen(true)} className="btn btn-outline !px-3 sm:!px-4 text-sm">
+            <Bot className="w-4 h-4"/> Ask AL
+          </button>
+        </div>
+      </header>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16 space-y-8">
+        <section className="campus-panel p-6 sm:p-8 lg:p-10 bg-white">
+          <div className="max-w-3xl">
+            <p className="campus-eyebrow mb-2">Independent learning</p>
+            <h1 className="campus-heading mb-3">Practice at your own pace</h1>
+            <p className="text-neutral-600 leading-relaxed">Choose your CEFR level and focus on the skill you want to strengthen. Work through short exercises and use AL whenever you need an explanation.</p>
+          </div>
+          <div className="mt-7 pt-6 border-t border-neutral-200">
+            <h2 className="font-bold text-secondary-900 text-base mb-3">Select a level</h2>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Select CEFR level">
+              {LEVELS.map(item => (
+                <button type="button" key={item.id} disabled={!item.unlocked} onClick={() => setActiveLevel(item.id)}
+                  aria-pressed={activeLevel === item.id}
+                  className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold border transition-colors ${
+                    activeLevel === item.id ? 'bg-secondary-900 border-secondary-900 text-white' :
+                    item.unlocked ? 'bg-white border-neutral-300 text-secondary-800 hover:border-primary-500' :
+                    'bg-neutral-50 border-neutral-200 text-neutral-400 cursor-not-allowed'}`}>
+                  {!item.unlocked && <Lock className="w-3.5 h-3.5"/>}{item.id}
+                  <span className="hidden sm:inline font-normal opacity-75">{item.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
 
-          {/* Skill Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 16 }}>
-            {SKILLS.map((skill) => {
-              const Icon   = skill.icon;
-              const locked = !level.unlocked;
-              return (
-                <Link key={skill.id} href={locked || skill.soon ? '#' : `${skill.path}?level=${activeLevel}`} style={{ textDecoration: 'none' }}>
-                  <div style={{ background: '#fff', border: `2px solid ${locked || skill.soon ? '#f3f4f6' : level.border}`, borderRadius: 20, padding: '24px 20px', cursor: locked || skill.soon ? 'not-allowed' : 'pointer', opacity: locked ? 0.5 : 1, transition: 'all 0.15s ease', position: 'relative', overflow: 'hidden' }}>
-                    {skill.soon && (
-                      <div style={{ position: 'absolute', top: 10, right: 10, background: '#fef3c7', color: '#92400e', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 999, border: '1.5px solid #fde68a' }}>SOON</div>
-                    )}
-                    <div style={{ width: 48, height: 48, borderRadius: 14, background: locked || skill.soon ? '#f9fafb' : level.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14, border: `2px solid ${locked || skill.soon ? '#e5e7eb' : level.border}` }}>
-                      <Icon size={22} color={locked || skill.soon ? '#9ca3af' : level.color} />
-                    </div>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: '#111827', marginBottom: 4 }}>{skill.label}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: level.color, fontSize: 13, fontWeight: 700 }}>
-                      {!locked && !skill.soon && (<>Practice <ChevronRight size={14} /></>)}
-                      {locked && <span style={{ color: '#9ca3af' }}>🔒 Locked</span>}
-                      {skill.soon && <span style={{ color: '#9ca3af' }}>Coming soon</span>}
-                    </div>
-                  </div>
-                </Link>
+        <section aria-labelledby="skills-title">
+          <div className="flex flex-wrap justify-between items-end gap-3 mb-4">
+            <div>
+              <p className="campus-eyebrow mb-1">{level.id} · {level.name}</p>
+              <h2 id="skills-title" className="text-xl sm:text-2xl font-bold text-secondary-900">Choose your practice</h2>
+              <p className="text-sm text-neutral-600 mt-1">{level.description}</p>
+            </div>
+            <Link href="/dashboard/student/placement-test" className="inline-flex items-center gap-2 text-sm font-semibold text-primary-700 hover:underline">
+              <ClipboardCheck className="w-4 h-4"/> Placement test <ArrowRight className="w-4 h-4"/>
+            </Link>
+          </div>
+          <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            {SKILLS.map(({label,detail,Icon,path,soon}) => {
+              const content = <>
+                <div className="w-12 h-12 rounded-xl bg-primary-50 text-primary-700 flex items-center justify-center mb-5"><Icon className="w-6 h-6"/></div>
+                <h3 className="text-lg font-bold text-secondary-900">{label}</h3>
+                <p className="text-sm text-neutral-600 mt-2 min-h-[42px]">{detail}</p>
+                <div className="mt-5 flex items-center gap-2 text-sm font-semibold text-primary-700">
+                  {soon ? <><Lock className="w-4 h-4"/> Coming soon</> : <>Start practice <ArrowRight className="w-4 h-4"/></>}
+                </div>
+              </>;
+              return soon ? (
+                <div key={label} className="campus-panel p-5 opacity-70" aria-label={`${label} coming soon`}>{content}</div>
+              ) : (
+                <Link key={label} href={`${path}?level=${activeLevel}`} className="campus-panel p-5 hover:border-primary-300 hover:shadow-medium transition-colors focus-visible:outline-offset-2">{content}</Link>
               );
             })}
           </div>
+        </section>
 
-          {/* AL Assistant teaser */}
-          <div style={{ marginTop: 32, background: 'linear-gradient(135deg, #7c3aed11, #3b82f611)', border: '2px dashed #c4b5fd', borderRadius: 20, padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ width: 52, height: 52, borderRadius: 999, background: 'linear-gradient(135deg, #7c3aed, #3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>🤖</div>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 16, color: '#111827' }}>Meet AL — your learning assistant</div>
-              <div style={{ fontSize: 14, color: '#6b7280', marginTop: 2 }}>
-                AL is available inside every game. Click <strong>&quot;Ask AL&quot;</strong> anytime you need help, explanations, or extra practice.
-              </div>
-            </div>
-            <div style={{ marginLeft: 'auto', flexShrink: 0 }}>
-              <button
-                onClick={() => setAlOpen(true)}
-                style={{ background: 'linear-gradient(135deg, #7c3aed, #3b82f6)', color: '#fff', padding: '8px 18px', borderRadius: 999, fontWeight: 800, fontSize: 13, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-              >
-                <Star size={14} /> Chat with AL
-              </button>
-            </div>
+        <section className="campus-panel p-6 sm:p-7 flex flex-col sm:flex-row sm:items-center gap-5">
+          <div className="w-12 h-12 rounded-xl bg-secondary-50 text-secondary-800 flex items-center justify-center flex-shrink-0"><Bot className="w-6 h-6"/></div>
+          <div className="flex-1">
+            <h2 className="font-bold text-secondary-900 text-lg">Ask AL — your learning assistant</h2>
+            <p className="text-sm text-neutral-600 mt-1">Ask a question, review a grammar rule or request extra examples while you practice.</p>
           </div>
-
-        </div>
-      </div>
-
-      {alOpen && <ALModal onClose={() => setAlOpen(false)} />}
-    </>
-  );
-}
-
-/* ─── AL Chat Modal ─────────────────────────────────────────────────────────── */
-function ALModal({ onClose }) {
-  const [messages, setMessages] = useState([
-    { role: 'assistant', text: "Hi! I'm AL, your English learning assistant 🤖\n\nI can help you with grammar, vocabulary, spelling, or anything you're practicing. What would you like to work on?" }
-  ]);
-  const [input,   setInput]   = useState('');
-  const [loading, setLoading] = useState(false);
-  const bottomRef = useRef(null);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  async function sendMessage() {
-    if (!input.trim() || loading) return;
-    const userMsg = input.trim();
-    setInput('');
-    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
-    setLoading(true);
-
-    try {
-      const res = await fetch('/api/al-assistant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` },
-        body: JSON.stringify({
-          messages: [
-            ...messages.slice(1).map(m => ({
-              role:    m.role,
-              content: m.text,
-            })),
-            { role: 'user', content: userMsg },
-          ],
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error(`Proxy error: ${res.status}`);
-      }
-
-      const data  = await res.json();
-      const reply = data.reply || "Sorry, I couldn't respond. Try again!";
-      setMessages(prev => [...prev, { role: 'assistant', text: reply }]);
-
-    } catch (err) {
-      console.error('AL chat error:', err);
-      setMessages(prev => [...prev, { role: 'assistant', text: "Oops! Something went wrong. Please try again 🙏" }]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
-      onClick={onClose}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{ background: '#fff', borderRadius: 24, width: '100%', maxWidth: 480, height: 560, display: 'flex', flexDirection: 'column', boxShadow: '0 24px 64px rgba(124,58,237,0.2)', overflow: 'hidden' }}
-      >
-        {/* Header */}
-        <div style={{ background: 'linear-gradient(135deg, #7c3aed, #3b82f6)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 999, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🤖</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 800, fontSize: 16, color: '#fff' }}>AL — Learning Assistant</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>AI-powered • Always here to help</div>
-          </div>
-          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 999, width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* Messages */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {messages.map((m, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-              <div style={{
-                maxWidth: '80%',
-                background: m.role === 'user' ? 'linear-gradient(135deg, #7c3aed, #3b82f6)' : '#f3f4f6',
-                color: m.role === 'user' ? '#fff' : '#111827',
-                borderRadius: m.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                padding: '10px 14px', fontSize: 14, lineHeight: 1.5, fontWeight: 500, whiteSpace: 'pre-wrap',
-              }}>
-                {m.text}
-              </div>
-            </div>
-          ))}
-          {loading && (
-            <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-              <div style={{ background: '#f3f4f6', borderRadius: '18px 18px 18px 4px', padding: '10px 16px', fontSize: 20, letterSpacing: 2 }}>•••</div>
-            </div>
-          )}
-          <div ref={bottomRef} />
-        </div>
-
-        {/* Input */}
-        <div style={{ padding: '12px 16px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input
-            style={{ flex: 1, border: '2px solid #e5e7eb', borderRadius: 999, padding: '10px 16px', fontSize: 14, outline: 'none', fontFamily: 'inherit' }}
-            placeholder="Ask AL anything…"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-            disabled={loading}
-          />
-          <button
-            onClick={sendMessage}
-            disabled={loading || !input.trim()}
-            style={{ width: 40, height: 40, borderRadius: 999, border: 'none', background: input.trim() ? 'linear-gradient(135deg, #7c3aed, #3b82f6)' : '#e5e7eb', color: '#fff', cursor: input.trim() ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
-          >
-            <Send size={16} />
-          </button>
-        </div>
-      </div>
+          <button type="button" onClick={() => setAlOpen(true)} className="btn btn-primary self-start sm:self-auto"><Bot className="w-4 h-4"/> Open assistant</button>
+        </section>
+        <p className="text-xs text-neutral-500">Practice activities are independent of your official worksheet grades unless your teacher assigns a graded activity.</p>
+      </main>
+      {alOpen && <ALModal onClose={() => setAlOpen(false)}/>}
     </div>
   );
 }
+
+function ALModal({onClose}) {
+  const [messages,setMessages] = useState([{role:'assistant',text:"Hi! I'm AL, your English learning assistant. Ask me about grammar, vocabulary or spelling. What would you like to work on?"}]);
+  const [input,setInput] = useState('');
+  const [loading,setLoading] = useState(false);
+  const bottomRef = useRef(null);
+  useEffect(() => { bottomRef.current?.scrollIntoView({behavior:'smooth'}); },[messages]);
+  useEffect(() => {
+    const esc = e => {if(e.key === 'Escape') onClose();};
+    window.addEventListener('keydown',esc);
+    return () => window.removeEventListener('keydown',esc);
+  },[onClose]);
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return;
+    const text = input.trim();setInput('');
+    setMessages(prev=>[...prev,{role:'user',text}]);setLoading(true);
+    try {
+      const response = await fetch('/api/al-assistant',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${localStorage.getItem('token') || ''}`},
+        body:JSON.stringify({messages:[...messages.slice(1).map(m=>({role:m.role,content:m.text})),{role:'user',content:text}]}),
+      });
+      if (!response.ok) throw new Error(`Assistant error ${response.status}`);
+      const data = await response.json();
+      setMessages(prev=>[...prev,{role:'assistant',text:data.reply || 'Sorry, I could not respond. Please try again.'}]);
+    } catch (error) {
+      console.error('AL chat error:',error);
+      setMessages(prev=>[...prev,{role:'assistant',text:'The assistant is unavailable right now. Please try again.'}]);
+    } finally { setLoading(false); }
+  };
+  return <div className="fixed inset-0 z-[100] bg-secondary-900/60 p-3 sm:p-6 flex items-center justify-center" onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-labelledby="al-dialog-title" onClick={e=>e.stopPropagation()} className="bg-white rounded-2xl shadow-large w-full max-w-xl h-[min(620px,90vh)] flex flex-col overflow-hidden">
+      <div className="bg-secondary-900 px-5 py-4 flex items-center gap-3">
+        <span className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white"><Bot className="w-5 h-5"/></span>
+        <div className="flex-1"><h2 id="al-dialog-title" className="text-white font-bold text-base">AL · Learning Assistant</h2><p className="text-secondary-200 text-xs">English practice support</p></div>
+        <button type="button" onClick={onClose} className="p-2 rounded-lg text-white hover:bg-white/10" aria-label="Close assistant"><X className="w-5 h-5"/></button>
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-5 space-y-3" aria-live="polite">
+        {messages.map((message,index)=><div key={index} className={`flex ${message.role==='user'?'justify-end':'justify-start'}`}>
+          <p className={`whitespace-pre-wrap text-sm leading-relaxed rounded-2xl px-4 py-3 max-w-[85%] ${message.role==='user'?'bg-primary-700 text-white':'bg-neutral-100 text-secondary-900'}`}>{message.text}</p>
+        </div>)}
+        {loading && <p className="text-xs text-neutral-500">AL is responding…</p>}
+        <div ref={bottomRef}/>
+      </div>
+      <form className="p-3 sm:p-4 border-t border-neutral-200 flex gap-2" onSubmit={e=>{e.preventDefault();sendMessage();}}>
+        <input className="input flex-1 min-w-0" value={input} onChange={e=>setInput(e.target.value)} disabled={loading} placeholder="Ask AL a question" aria-label="Message to AL"/>
+        <button type="submit" className="btn btn-primary !px-4" disabled={loading || !input.trim()} aria-label="Send message"><Send className="w-5 h-5"/></button>
+      </form>
+    </div>
+  </div>;
+}
+export default function GuardedStudentPage(){return <StudentAccess><PracticeHub/></StudentAccess>;}

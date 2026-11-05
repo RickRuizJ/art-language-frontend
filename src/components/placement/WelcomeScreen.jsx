@@ -1,10 +1,11 @@
 'use client';
+import CampusGlyph from '@/components/CampusGlyph';
 
 import { useEffect, useRef, useState } from 'react';
 import ALCharacter from './ALCharacter';
 
 /* ─────────────────────────────────────────────────────────────
-   WelcomeScreen — Cosmic nova entrance
+   WelcomeScreen — English placement welcome
    AL emerges from rainbow arc, welcomes the user
 ───────────────────────────────────────────────────────────── */
 export default function WelcomeScreen({ onStart }) {
@@ -136,7 +137,7 @@ export default function WelcomeScreen({ onStart }) {
               borderRadius:999, padding:'6px 14px',
               color:'#ddd6fe', fontSize:12, fontWeight:800,
             }}>
-              <span style={{fontSize:14}}>{icon}</span>{text}
+              <CampusGlyph symbol={icon} size={14}/>{text}
             </div>
           ))}
         </div>
@@ -163,7 +164,7 @@ export default function WelcomeScreen({ onStart }) {
             e.currentTarget.style.boxShadow='0 8px 30px rgba(124,58,237,0.5)';
           }}
         >
-          🚀 Start Test
+          <CampusGlyph symbol="🚀" size={18}/> Start Test
         </button>
 
         <p style={{ color:'#4b5563', fontSize:11, marginTop:14 }}>

@@ -1,4 +1,5 @@
 'use client';
+import CampusGlyph from '@/components/CampusGlyph';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -189,7 +190,7 @@ export default function CreateGroupPage() {
         {/* Help Text */}
         <div className="mt-6 card bg-neutral-50 border-neutral-200">
           <h4 className="text-sm font-semibold text-neutral-900 mb-3">
-            💡 Tips for organizing groups
+            <CampusGlyph symbol="💡" size={18} className="inline-block align-middle mr-2"/>Tips for organizing groups
           </h4>
           <ul className="text-sm text-neutral-700 space-y-2">
             <li>

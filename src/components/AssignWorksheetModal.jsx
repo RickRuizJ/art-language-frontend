@@ -1,4 +1,5 @@
 'use client';
+import CampusGlyph from '@/components/CampusGlyph';
 
 import { useState, useEffect } from 'react';
 import { worksheetAPI, assignmentAPI } from '@/lib/api';
@@ -150,8 +151,8 @@ export default function AssignWorksheetModal({ groupId, groupName, onClose, onSu
                           </p>
                         )}
                         <div className="flex items-center gap-3 mt-2 text-xs text-neutral-500">
-                          {worksheet.subject && <span>📚 {worksheet.subject}</span>}
-                          {worksheet.gradeLevel && <span>🎓 {worksheet.gradeLevel}</span>}
+                          {worksheet.subject && <span><CampusGlyph symbol="📚" size={14} className="inline-block align-middle mr-1"/> {worksheet.subject}</span>}
+                          {worksheet.gradeLevel && <span><CampusGlyph symbol="🎓" size={14} className="inline-block align-middle mr-1"/> {worksheet.gradeLevel}</span>}
                           {worksheet.estimatedTime && <span>⏱️ {worksheet.estimatedTime} min</span>}
                         </div>
                       </div>

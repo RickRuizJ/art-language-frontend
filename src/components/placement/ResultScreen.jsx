@@ -1,4 +1,5 @@
 'use client';
+import CampusGlyph from '@/components/CampusGlyph';
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -62,7 +63,7 @@ export default function ResultScreen({ score, total, level, alState, onRestart }
         marginBottom:26, minWidth:270, opacity:0,
       }}>
         <div style={{ fontSize:46,marginBottom:10,animation:'rsBounce .5s .6s cubic-bezier(.34,1.56,.64,1) both' }}>
-          {cfg.emoji}
+          <CampusGlyph symbol={cfg.emoji} size={42}/>
         </div>
         <div style={{ fontSize:60,fontWeight:900,color:cfg.color,textShadow:`0 0 32px ${cfg.color}`,lineHeight:1,letterSpacing:'-3px',marginBottom:5,animation:'rsBounce .5s .7s cubic-bezier(.34,1.56,.64,1) both' }}>
           {level}
