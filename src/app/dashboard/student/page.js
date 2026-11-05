@@ -154,15 +154,15 @@ export default function StudentDashboard() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="campus-page">
 
       {/* ── Header ─────────────────────────────────────────── */}
-      <header className="bg-white border-b border-neutral-200 sticky top-0 z-20 shadow-soft">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <header className="campus-topbar sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-[76px] flex items-center justify-between gap-4">
 
           {/* Brand */}
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center flex-shrink-0">
+            <div className="campus-brand-mark">
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
             <div className="hidden sm:block min-w-0">
@@ -194,12 +194,12 @@ export default function StudentDashboard() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
 
         {/* ── Welcome + group pill ───────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-neutral-900 leading-tight">
+          <div><p className="campus-eyebrow mb-2">My learning space</p>
+            <h1 className="campus-heading">
               Welcome back, {student?.firstName}
             </h1>
             <p className="text-neutral-500 text-sm mt-1">
@@ -223,6 +223,13 @@ export default function StudentDashboard() {
             </div>
           )}
         </div>
+
+        <nav aria-label="Student quick navigation" className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <a href="#my-assignments" className="campus-quick-link text-sm font-semibold text-secondary-900"><FileText className="w-5 h-5 text-primary-700 flex-shrink-0"/>Assignments</a>
+          <a href="#my-progress" className="campus-quick-link text-sm font-semibold text-secondary-900"><BarChart3 className="w-5 h-5 text-primary-700 flex-shrink-0"/>My Progress</a>
+          <Link href="/dashboard/student/practice-hub" className="campus-quick-link text-sm font-semibold text-secondary-900"><Zap className="w-5 h-5 text-primary-700 flex-shrink-0"/>Practice Hub</Link>
+          <Link href="/change-password" className="campus-quick-link text-sm font-semibold text-secondary-900"><Users className="w-5 h-5 text-primary-700 flex-shrink-0"/>My Account</Link>
+        </nav>
 
         {/* ── Teacher messages ─────────────────────────────────── */}
         {inbox.error && <p role="status" className="text-sm text-neutral-500">
@@ -278,6 +285,7 @@ export default function StudentDashboard() {
           </section>
         )}
 
+        <div id="my-progress" className="scroll-mt-24" />
         {/* ── Stats grid ─────────────────────────────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           <StatCard
@@ -314,7 +322,7 @@ export default function StudentDashboard() {
 
         {/* ── Practice Hub CTA ───────────────────────────────── */}
         <Link href="/dashboard/student/practice-hub" className="block group">
-          <div className="rounded-2xl bg-gradient-to-r from-primary-600 to-primary-500 p-5 sm:p-6 flex items-center justify-between gap-4 shadow-medium transition-all duration-200 group-hover:shadow-large group-hover:-translate-y-0.5">
+          <div className="rounded-2xl bg-secondary-900 p-5 sm:p-6 flex items-center justify-between gap-4 shadow-soft transition-colors duration-150 group-hover:bg-secondary-800">
             <div className="text-white min-w-0">
               <div className="flex items-center gap-2 mb-1.5">
                 <Zap className="w-4 h-4 opacity-75 flex-shrink-0" />
@@ -336,7 +344,7 @@ export default function StudentDashboard() {
         </Link>
 
         {/* ── Assignments ────────────────────────────────────── */}
-        <section>
+        <section id="my-assignments" className="scroll-mt-24">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h2 className="text-lg sm:text-xl font-bold text-neutral-900">
               My Assignments

@@ -1,4 +1,5 @@
 'use client';
+import CampusGlyph from '@/components/CampusGlyph';
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -119,7 +120,7 @@ export default function EditWorksheetPage() {
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-soft p-8 text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl">❌</span>
+            <CampusGlyph symbol="❌" size={32} className="text-primary-700"/>
           </div>
           <h2 className="text-xl font-bold text-neutral-900 mb-2">Error</h2>
           <p className="text-neutral-600 mb-6">{error}</p>
@@ -143,7 +144,7 @@ export default function EditWorksheetPage() {
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-soft p-8 text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl">🔒</span>
+            <CampusGlyph symbol="🔒" size={32} className="text-primary-700"/>
           </div>
           <h2 className="text-xl font-bold text-neutral-900 mb-2">Access Denied</h2>
           <p className="text-neutral-600 mb-6">You don't have permission to edit this worksheet</p>

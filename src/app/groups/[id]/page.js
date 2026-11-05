@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { groupAPI, assignmentAPI, messageAPI } from '@/lib/api';
 import Link from 'next/link';
-import { ArrowLeft, Users, BookOpen, Plus, Trash2, UserMinus, Copy, Check, MessageSquare, Send, X } from 'lucide-react';
+import { ArrowLeft, Users, BookOpen, Plus, Trash2, UserMinus, Copy, Check, MessageSquare, Send, X, AlertCircle, GraduationCap, BarChart3, CalendarDays } from 'lucide-react';
 import AssignWorksheetModal from '@/components/AssignWorksheetModal';
 
 export default function GroupDetailPage() {
@@ -17,6 +17,8 @@ export default function GroupDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('students');
+  const groupRequest = useRef({ version: 0, inFlight: false });
+  const assignmentRequest = useRef(0);
 
   // Add Students Modal state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -39,51 +41,90 @@ export default function GroupDetailPage() {
   const [messageSending, setMessageSending] = useState(false);
   const [messageError, setMessageError] = useState('');
 
-  useEffect(() => {
-    if (params.id) {
-      fetchGroup();
-      fetchAssignments();
-    }
-  }, [params.id]);
-
   // BUG FIX 1: fetchGroup was calling groupAPI.getAll() and filtering client-side.
   // This is fragile (if the group isn't in the first page of results it fails)
   // and wasteful. groupAPI.getOne(id) exists and is the correct call here.
-  const fetchGroup = async () => {
+  const fetchGroup = useCallback(async ({ background = false } = {}) => {
+    // Do not overlap background polls or let an older response replace newer data.
+    if (background && groupRequest.current.inFlight) return;
+    const version = ++groupRequest.current.version;
+    groupRequest.current.inFlight = true;
     try {
-      setLoading(true);
-      setError(null);
+      if (!background) {
+        setLoading(true);
+        setError(null);
+      }
 
       const response = await groupAPI.getOne(params.id);
+      if (version !== groupRequest.current.version) return;
       const foundGroup = response.data.data.group;
 
       if (!foundGroup) {
-        setError('Group not found');
+        if (!background) setError('Group not found');
         return;
       }
 
       setGroup(foundGroup);
+      setError(null);
     } catch (err) {
-      console.error('Error fetching group:', err);
-      setError(err.response?.data?.message || 'Failed to load group');
+      const accessLost = [401, 403, 404].includes(err.response?.status);
+      if (version === groupRequest.current.version && (!background || accessLost)) {
+        console.error('Error fetching group:', err);
+        if (accessLost) setGroup(null);
+        setError(err.response?.data?.message || 'Failed to load group');
+      }
     } finally {
-      setLoading(false);
+      if (version === groupRequest.current.version) {
+        groupRequest.current.inFlight = false;
+        if (!background) setLoading(false);
+      }
     }
-  };
+  }, [params.id]);
 
   // BUG FIX 2: fetchAssignments was called in the useEffect and in
   // handleRemoveAssignment but was never defined anywhere in this file.
   // This crashes the page with "fetchAssignments is not defined" the moment
   // the component mounts, which is why the group detail page never loaded.
-  const fetchAssignments = async () => {
+  const fetchAssignments = useCallback(async () => {
+    const version = ++assignmentRequest.current;
     try {
       const response = await assignmentAPI.getGroupAssignments(params.id);
-      setAssignments(response.data.data.assignments || []);
+      if (version === assignmentRequest.current) {
+        setAssignments(response.data.data.assignments || []);
+      }
     } catch (err) {
       console.error('Error fetching assignments:', err);
       // Non-fatal: don't block the page if assignments fail to load
     }
-  };
+  }, [params.id]);
+
+  useEffect(() => {
+    if (!params.id) return;
+    fetchGroup();
+    fetchAssignments();
+
+    // Analytics lives on another page: refresh on return, and while this page
+    // stays visible so grades saved by another session also reach this card.
+    const refresh = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine !== false) {
+        fetchGroup({ background: true });
+      }
+    };
+    window.addEventListener('focus', refresh);
+    window.addEventListener('online', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    const timer = window.setInterval(refresh, 30000);
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('online', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+      groupRequest.current.version += 1;
+      groupRequest.current.inFlight = false;
+      assignmentRequest.current += 1;
+    };
+  }, [params.id, fetchGroup, fetchAssignments]);
 
   const fetchAvailableStudents = async () => {
     try {
@@ -249,7 +290,7 @@ export default function GroupDetailPage() {
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-soft p-8 text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl">❌</span>
+            <AlertCircle className="w-8 h-8 text-red-600" aria-hidden="true"/>
           </div>
           <h2 className="text-xl font-bold text-neutral-900 mb-2">Error</h2>
           <p className="text-neutral-600 mb-6">{error}</p>
@@ -268,20 +309,24 @@ export default function GroupDetailPage() {
 
   const isOwner = group.teacherId === user?.id;
   const memberCount = group.members?.length || 0;
+  const avgProgress = Number.isFinite(group.avgProgress)
+    && group.avgProgress >= 0 && group.avgProgress <= 100 ? group.avgProgress : null;
+  const avgProgressUnavailable = group.avgProgressStatus === 'unavailable'
+    || (group.avgProgressStatus === 'ready' && avgProgress == null);
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="campus-page">
       {/* Header */}
-      <header className="bg-white border-b border-neutral-200">
+      <header className="campus-topbar">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-start justify-between">
-            <div className="flex items-start gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="flex flex-wrap sm:flex-nowrap items-start gap-3 sm:gap-4">
               <Link href="/dashboard/teacher" className="btn btn-ghost mt-1">
                 <ArrowLeft className="w-5 h-5" />
                 Back
               </Link>
               <div>
-                <h1 className="text-3xl font-bold text-neutral-900">{group.name}</h1>
+                <h1 className="campus-heading">{group.name}</h1>
                 {group.description && (
                   <p className="text-neutral-600 mt-2">{group.description}</p>
                 )}
@@ -318,15 +363,15 @@ export default function GroupDetailPage() {
       {/* Join Code Card (Teacher only) */}
       {isOwner && group.joinCode && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="bg-gradient-to-r from-primary-50 to-secondary-50 border border-primary-200 rounded-2xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
+          <div className="campus-panel p-5 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="min-w-0">
                 <h3 className="font-semibold text-neutral-900 mb-1">Group Join Code</h3>
                 <p className="text-sm text-neutral-600 mb-3">
                   Share this code with students so they can join this group
                 </p>
-                <div className="flex items-center gap-3">
-                  <code className="text-3xl font-bold tracking-wider bg-white px-6 py-3 rounded-lg border-2 border-primary-300 text-primary-700">
+                <div className="flex flex-wrap items-center gap-3">
+                  <code className="text-2xl sm:text-3xl font-bold tracking-wider bg-white px-6 py-3 rounded-lg border-2 border-primary-300 text-primary-700">
                     {group.joinCode}
                   </code>
                   <button
@@ -347,7 +392,7 @@ export default function GroupDetailPage() {
                   </button>
                 </div>
               </div>
-              <div className="text-6xl">🎓</div>
+              <GraduationCap className="w-10 h-10 text-primary-600" aria-hidden="true"/>
             </div>
           </div>
         </div>
@@ -355,12 +400,12 @@ export default function GroupDetailPage() {
 
       {/* Stats */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl p-6 shadow-soft">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="campus-stat">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-neutral-600">Students</p>
-                <p className="text-3xl font-bold text-neutral-900 mt-1">{memberCount}</p>
+                <p className="campus-stat-value mt-2">{memberCount}</p>
               </div>
               <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center">
                 <Users className="w-6 h-6 text-primary-600" />
@@ -369,11 +414,11 @@ export default function GroupDetailPage() {
           </div>
 
           {/* BUG FIX 3: Worksheets stat was hardcoded to 0. Now uses assignments.length. */}
-          <div className="bg-white rounded-xl p-6 shadow-soft">
+          <div className="campus-stat">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-neutral-600">Worksheets</p>
-                <p className="text-3xl font-bold text-neutral-900 mt-1">{assignments.length}</p>
+                <p className="campus-stat-value mt-2">{assignments.length}</p>
               </div>
               <div className="w-12 h-12 bg-secondary-100 rounded-xl flex items-center justify-center">
                 <BookOpen className="w-6 h-6 text-secondary-600" />
@@ -381,14 +426,14 @@ export default function GroupDetailPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-soft">
+          <div className="campus-stat">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-neutral-600">Avg. Progress</p>
-                <p className="text-3xl font-bold text-neutral-900 mt-1">-</p>
+                <p className="campus-stat-value mt-2" title={avgProgressUnavailable ? 'Average temporarily unavailable. It will refresh automatically.' : undefined}>{avgProgressUnavailable ? 'N/D' : avgProgress == null ? '–' : `${avgProgress}%`}</p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                <span className="text-2xl">📊</span>
+                <BarChart3 className="w-6 h-6 text-green-600" aria-hidden="true"/>
               </div>
             </div>
           </div>
@@ -398,7 +443,7 @@ export default function GroupDetailPage() {
       {/* Tabs */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="border-b border-neutral-200">
-          <nav className="flex gap-8">
+          <nav className="flex gap-5 sm:gap-8 overflow-x-auto">
             {[
               { key: 'students', label: 'Students', icon: Users },
               { key: 'worksheets', label: 'Worksheets', icon: BookOpen },
@@ -536,15 +581,15 @@ export default function GroupDetailPage() {
                         )}
                         {assignment.dueDate && (
                           <p className="text-sm text-neutral-500 mt-2">
-                            📅 Due: {new Date(assignment.dueDate).toLocaleDateString()}
+                            <CalendarDays className="w-4 h-4 inline-block mr-1" aria-hidden="true"/> Due: {new Date(assignment.dueDate).toLocaleDateString()}
                           </p>
                         )}
                         <div className="flex items-center gap-3 mt-2 text-xs text-neutral-500">
                           {assignment.worksheet.subject && (
-                            <span>📚 {assignment.worksheet.subject}</span>
+                            <span>{assignment.worksheet.subject}</span>
                           )}
                           {assignment.worksheet.gradeLevel && (
-                            <span>🎓 {assignment.worksheet.gradeLevel}</span>
+                            <span>{assignment.worksheet.gradeLevel}</span>
                           )}
                         </div>
                       </div>
@@ -725,6 +770,7 @@ export default function GroupDetailPage() {
           onClose={() => setShowAssignModal(false)}
           onSuccess={() => {
             fetchAssignments();
+            fetchGroup({ background: true });
             setShowAssignModal(false);
           }}
         />

@@ -1,4 +1,5 @@
 'use client';
+import CampusGlyph from '@/components/CampusGlyph';
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -73,7 +74,7 @@ export default function WorkbookDetailPage() {
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-soft p-8 text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl">❌</span>
+            <CampusGlyph symbol="❌" size={32} className="text-primary-700"/>
           </div>
           <h2 className="text-xl font-bold text-neutral-900 mb-2">Error</h2>
           <p className="text-neutral-600 mb-6">{error}</p>
@@ -171,7 +172,7 @@ export default function WorkbookDetailPage() {
                 <p className="text-3xl font-bold text-neutral-900 mt-1">0</p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                <span className="text-2xl">✅</span>
+                <CampusGlyph symbol="✅" size={24} className="text-primary-700"/>
               </div>
             </div>
           </div>
@@ -195,7 +196,7 @@ export default function WorkbookDetailPage() {
                 <p className="text-3xl font-bold text-neutral-900 mt-1">-</p>
               </div>
               <div className="w-12 h-12 bg-secondary-100 rounded-xl flex items-center justify-center">
-                <span className="text-2xl">📊</span>
+                <CampusGlyph symbol="📊" size={24} className="text-primary-700"/>
               </div>
             </div>
           </div>

@@ -7,13 +7,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { worksheetAPI, groupAPI, teacherAPI } from '@/lib/api';
 import {
   BookOpen, Users, FileText, BarChart3, Plus,
-  LogOut, Eye, Edit, Trash2, CheckCircle
+  LogOut, Eye, Edit, Trash2, CheckCircle, LayoutDashboard,
+  ArrowRight, GraduationCap, ClipboardList
 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function TeacherDashboard() {
   const { user, logout, loading: authLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState('worksheets');
+  const [activeTab, setActiveTab] = useState('overview');
   const [worksheets, setWorksheets] = useState([]);
   const [groups, setGroups] = useState([]);
   const [stats, setStats] = useState({
@@ -118,97 +119,109 @@ export default function TeacherDashboard() {
 
   return (
     <div className="min-h-screen bg-neutral-50">
-      {/* Header */}
-      <header className="bg-white border-b border-neutral-200 sticky top-0 z-10">
-        <div className="container-custom py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
-                <BookOpen className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-display font-bold text-neutral-900">
-                  Art & Language Campus
-                </h1>
-                <p className="text-sm text-neutral-600">Teacher Dashboard</p>
-              </div>
+      <header className="campus-topbar sticky top-0 z-30">
+        <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 h-[76px] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="campus-brand-mark"><BookOpen className="w-5 h-5" /></div>
+            <div className="min-w-0">
+              <p className="text-base font-bold text-secondary-900 tracking-tight truncate">Art &amp; Language Campus</p>
+              <p className="text-xs text-neutral-500">Teacher Workspace</p>
             </div>
-            <button onClick={logout} className="btn btn-ghost">
-              <LogOut className="w-5 h-5" />
-              Sign Out
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="hidden sm:inline text-sm text-neutral-500">{user?.firstName} {user?.lastName}</span>
+            <button onClick={logout} className="btn btn-outline text-sm" aria-label="Sign out">
+              <LogOut className="w-4 h-4" /><span className="hidden sm:inline">Sign Out</span>
             </button>
           </div>
         </div>
       </header>
 
-      <div className="container-custom py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-display font-bold text-neutral-900 mb-2">
-            Welcome, {user?.firstName}! 🎓
-          </h2>
-          <p className="text-neutral-600">
-            Manage your worksheets, groups, and track student progress
-          </p>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <StatsCard
-            icon={<FileText className="w-6 h-6" />}
-            title="Worksheets"
-            value={stats.totalWorksheets}
-            color="bg-primary-100 text-primary-600"
-          />
-          <StatsCard
-            icon={<Users className="w-6 h-6" />}
-            title="Groups"
-            value={stats.totalGroups}
-            color="bg-secondary-100 text-secondary-600"
-          />
-          <StatsCard
-            icon={<Users className="w-6 h-6" />}
-            title="Students"
-            value={stats.totalStudents}
-            color="bg-accent-100 text-accent-600"
-          />
-          <StatsCard
-            icon={<CheckCircle className="w-6 h-6" />}
-            title="Pending Review"
-            value={stats.pendingSubmissions}
-            color="bg-green-100 text-green-600"
-          />
-        </div>
-
-        {/* Tabs */}
-        <div className="bg-white rounded-2xl shadow-soft p-2 mb-6">
-          <div className="flex flex-wrap gap-2">
-            <TabButton
-              active={activeTab === 'worksheets'}
-              onClick={() => setActiveTab('worksheets')}
-              icon={<FileText className="w-5 h-5" />}
-              label="Worksheets"
-            />
-            <TabButton
-              active={activeTab === 'groups'}
-              onClick={() => setActiveTab('groups')}
-              icon={<Users className="w-5 h-5" />}
-              label="Groups"
-            />
-            <TabButton
-              active={activeTab === 'students'}
-              onClick={() => setActiveTab('students')}
-              icon={<Users className="w-5 h-5" />}
-              label="Students"
-            />
-            <TabButton
-              active={activeTab === 'analytics'}
-              onClick={() => setActiveTab('analytics')}
-              icon={<BarChart3 className="w-5 h-5" />}
-              label="Analytics"
-            />
+      <div className="max-w-[1500px] mx-auto lg:flex lg:gap-8 px-4 sm:px-6 lg:px-8 pt-6 pb-14">
+        <aside aria-label="Teacher navigation" className="hidden lg:block w-56 xl:w-64 flex-shrink-0">
+          <div className="sticky top-28 campus-panel p-3">
+            <p className="campus-eyebrow px-3 py-3">Workspace</p>
+            {[
+              { key: 'overview', label: 'Overview', Icon: LayoutDashboard },
+              { key: 'worksheets', label: 'Worksheets', Icon: BookOpen },
+              { key: 'groups', label: 'Groups', Icon: Users },
+              { key: 'students', label: 'Students', Icon: GraduationCap },
+              { key: 'analytics', label: 'Analytics', Icon: BarChart3 },
+            ].map(({ key, label, Icon }) => (
+              <button type="button" key={key} className="campus-nav-item" data-active={activeTab === key}
+                aria-current={activeTab === key ? 'page' : undefined} onClick={() => setActiveTab(key)}>
+                <Icon className="w-[18px] h-[18px]" />{label}
+              </button>
+            ))}
+            <div className="campus-divider my-3" />
+            <Link href="/worksheets/create" className="campus-nav-item"><Plus className="w-[18px] h-[18px]"/>New worksheet</Link>
+            <Link href="/groups" className="campus-nav-item"><Users className="w-[18px] h-[18px]"/>Manage groups</Link>
           </div>
-        </div>
+        </aside>
+
+        <main className="flex-1 min-w-0">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 mb-6">
+            <div>
+              <p className="campus-eyebrow mb-2">Teaching, simplified</p>
+              <h1 className="campus-heading">Welcome back, {user?.firstName}</h1>
+              <p className="text-neutral-600 text-sm sm:text-base mt-2">Manage your classes, student access and academic progress in one place.</p>
+            </div>
+            <Link href="/worksheets/create" className="btn btn-primary self-start"><Plus className="w-4 h-4"/>Create worksheet</Link>
+          </div>
+
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-6">
+            <StatsCard icon={<FileText className="w-5 h-5" />} title="Worksheets" value={stats.totalWorksheets} color="bg-primary-50 text-primary-700" />
+            <StatsCard icon={<Users className="w-5 h-5" />} title="Groups" value={stats.totalGroups} color="bg-secondary-50 text-secondary-700" />
+            <StatsCard icon={<GraduationCap className="w-5 h-5" />} title="Students" value={stats.totalStudents} color="bg-primary-50 text-primary-700" />
+            <StatsCard icon={<ClipboardList className="w-5 h-5" />} title="Pending Review" value={stats.pendingSubmissions} color="bg-accent-50 text-accent-700" />
+          </div>
+
+          <nav aria-label="Teacher sections" className="lg:hidden campus-panel p-2 mb-6 flex gap-1 overflow-x-auto">
+            <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} icon={<LayoutDashboard className="w-4 h-4" />} label="Overview" />
+            <TabButton active={activeTab === 'worksheets'} onClick={() => setActiveTab('worksheets')} icon={<FileText className="w-4 h-4" />} label="Worksheets" />
+            <TabButton active={activeTab === 'groups'} onClick={() => setActiveTab('groups')} icon={<Users className="w-4 h-4" />} label="Groups" />
+            <TabButton active={activeTab === 'students'} onClick={() => setActiveTab('students')} icon={<GraduationCap className="w-4 h-4" />} label="Students" />
+            <TabButton active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} icon={<BarChart3 className="w-4 h-4" />} label="Analytics" />
+          </nav>
+
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              <section className="campus-panel p-5 sm:p-7">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+                  <div><p className="campus-eyebrow mb-1">Quick access</p><h2 className="text-xl font-bold text-secondary-900">Your workspace</h2></div>
+                  <span className="text-xs text-neutral-500">All your tools, one place</span>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {[
+                    { key: 'worksheets', title: 'Worksheet library', detail: 'Create, edit and publish activities', Icon: BookOpen },
+                    { key: 'groups', title: 'Class groups', detail: 'Assignments, members and join codes', Icon: Users },
+                    { key: 'students', title: 'Student accounts', detail: 'Access, profiles and passwords', Icon: GraduationCap },
+                    { key: 'analytics', title: 'Academic analytics', detail: 'Grades, progress and history', Icon: BarChart3 },
+                  ].map(({ key, title, detail, Icon }) => (
+                    <button key={key} type="button" className="campus-quick-link text-left group"
+                      onClick={() => setActiveTab(key)}>
+                      <span className="w-10 h-10 rounded-xl bg-primary-50 text-primary-700 inline-flex items-center justify-center flex-shrink-0"><Icon className="w-5 h-5"/></span>
+                      <span className="min-w-0 flex-1"><strong className="block text-sm text-secondary-900">{title}</strong><span className="block text-xs text-neutral-500 mt-1">{detail}</span></span>
+                      <ArrowRight className="w-4 h-4 text-neutral-400 group-hover:text-primary-700" />
+                    </button>
+                  ))}
+                </div>
+              </section>
+              <section>
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <h2 className="text-lg font-bold text-secondary-900">Your groups</h2>
+                  <button type="button" onClick={() => setActiveTab('groups')} className="text-sm font-semibold text-primary-700 hover:underline">View all</button>
+                </div>
+                {groups.length === 0 ? (
+                  <div className="campus-panel p-6 text-sm text-neutral-600">No groups created yet. <Link href="/groups" className="font-semibold text-primary-700 underline">Create a group</Link> to get started.</div>
+                ) : (
+                  <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {groups.slice(0, 6).map(group => <GroupCard key={group.id} group={group}/>)}
+                  </div>
+                )}
+              </section>
+            </div>
+          )}
 
         {/* Content */}
         {activeTab === 'worksheets' && (
@@ -285,7 +298,7 @@ export default function TeacherDashboard() {
                 </Link>
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 {groups.map((group) => (
                   <GroupCard key={group.id} group={group} />
                 ))}
@@ -296,6 +309,7 @@ export default function TeacherDashboard() {
 
         {activeTab === 'students' && <StudentManagement onChanged={fetchData}/>}
         {activeTab === 'analytics' && <AnalyticsPanel/>}
+        </main>
       </div>
     </div>
   );
@@ -303,30 +317,19 @@ export default function TeacherDashboard() {
 
 function StatsCard({ icon, title, value, color }) {
   return (
-    <div className="card">
-      <div className="flex items-center justify-between mb-4">
-        <div className={`w-12 h-12 rounded-xl ${color} flex items-center justify-center`}>
-          {icon}
-        </div>
-      </div>
+    <div className="campus-stat">
+      <div className={`w-10 h-10 rounded-xl ${color} inline-flex items-center justify-center mb-4`}>{icon}</div>
       <p className="text-neutral-600 text-sm mb-1">{title}</p>
-      <p className="text-3xl font-display font-bold text-neutral-900">{value}</p>
+      <p className="campus-stat-value">{value}</p>
     </div>
   );
 }
 
 function TabButton({ active, onClick, icon, label }) {
   return (
-    <button
-      onClick={onClick}
-      className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
-        active
-          ? 'bg-primary-100 text-primary-700'
-          : 'text-neutral-600 hover:bg-neutral-50'
-      }`}
-    >
-      {icon}
-      {label}
+    <button type="button" onClick={onClick} aria-current={active ? 'page' : undefined}
+      className={`campus-nav-item !w-auto flex-shrink-0 ${active ? 'bg-primary-50 text-primary-800' : ''}`}>
+      {icon}{label}
     </button>
   );
 }
@@ -335,9 +338,9 @@ function WorksheetRow({ worksheet, onDelete, onTogglePublish }) {
   const hasInteractiveQuestions = (worksheet.questions || []).some(q => !['external_link', 'google_embed'].includes(q.type));
   const editHref = hasInteractiveQuestions ? `/worksheets/builder?id=${worksheet.id}` : `/worksheets/${worksheet.id}/edit`;
   return (
-    <div className="card flex items-center justify-between">
-      <div className="flex-1">
-        <div className="flex items-center gap-3 mb-2">
+    <div className="card flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-wrap items-center gap-3 mb-2">
           <h4 className="text-lg font-display font-bold text-neutral-900">
             {worksheet.title}
           </h4>
@@ -356,8 +359,8 @@ function WorksheetRow({ worksheet, onDelete, onTogglePublish }) {
           {worksheet.gradeLevel && <span>{worksheet.gradeLevel}</span>}
         </div>
       </div>
-      <div className="flex gap-2">
-        <Link href={`/worksheets/${worksheet.id}`} className="btn btn-ghost">
+      <div className="flex flex-wrap items-center gap-2">
+        <Link href={`/worksheets/${worksheet.id}`} className="btn btn-ghost" title="View worksheet" aria-label={`View ${worksheet.title}`}>
           <Eye className="w-5 h-5" />
         </Link>
         <Link
@@ -377,6 +380,7 @@ function WorksheetRow({ worksheet, onDelete, onTogglePublish }) {
         <button
           onClick={() => onDelete(worksheet.id)}
           className="btn btn-ghost text-red-600 hover:bg-red-50"
+          title="Delete worksheet" aria-label={`Delete ${worksheet.title}`}
         >
           <Trash2 className="w-5 h-5" />
         </button>

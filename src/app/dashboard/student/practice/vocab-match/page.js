@@ -1,4 +1,5 @@
 'use client';
+import CampusGlyph from '@/components/CampusGlyph';
 import StudentAccess from '@/components/StudentAccess';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -408,7 +409,7 @@ function VocabMatchGame() {
             {/* Instruction tip */}
             {!selectedWord && !selectedDef && matched.length === 0 && (
               <div style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: '#94a3b8', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                <span style={{ fontSize: 16 }}>👆</span> Select a word, then tap its matching definition
+                <CampusGlyph symbol="👆" size={16} className="inline-block align-middle"/> Select a word, then tap its matching definition
               </div>
             )}
             {selectedWord && !selectedDef && (

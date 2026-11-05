@@ -24,17 +24,17 @@ export function useALStateMachine() {
 
   /* Messages */
   const MSGS = {
-    correct:     ['Nice! ✨', 'Great job!', 'Brilliant! 🎉', "That's right!", 'Spot on! ⭐'],
-    wrong:       ['Oops! Try the next one!', "Almost! Don't give up 💜", 'That was tricky!', 'Keep going!'],
-    welldone:    ['You\'re on fire! 🔥', 'Incredible streak!', 'You\'re doing amazing!'],
-    surprised:   ['Whoa! Two in a row... 🌟', "That's unexpected!", 'Hmm, interesting...'],
-    meteor:      ['Oops... a meteor hit! 🌠', "Don't worry, AL's here!"],
-    disappear:   ["AL's regrouping... 💫", "Don't worry, AL never gives up!"],
-    celebrating: ['You completed the test! 🏆', 'What a journey! 🌟'],
-    thinking:    ['Hmm... 🤔', 'Let me think...', 'Taking your time!'],
-    idle:        ['Take your time! ✨', "You've got this!", 'Ready when you are!'],
-    welcome:     ["Welcome! Let's explore your English level 🌌"],
-    ready:       ["Let's go! I'm with you every step 🚀"],
+    correct:     ['Nice!', 'Great job!', 'Brilliant!', "That's right!", 'Spot on!'],
+    wrong:       ['Oops! Try the next one!', "Almost! Don't give up", 'That was tricky!', 'Keep going!'],
+    welldone:    ['You\'re on fire!', 'Incredible streak!', 'You\'re doing amazing!'],
+    surprised:   ['Whoa! Two in a row...', "That's unexpected!", 'Hmm, interesting...'],
+    meteor:      ['Oops... a meteor hit!', "Don't worry, AL's here!"],
+    disappear:   ["AL's regrouping...", "Don't worry, AL never gives up!"],
+    celebrating: ['You completed the test!', 'What a journey!'],
+    thinking:    ['Hmm...', 'Let me think...', 'Taking your time!'],
+    idle:        ['Take your time!', "You've got this!", 'Ready when you are!'],
+    welcome:     ["Welcome! Let's explore your English level"],
+    ready:       ["Let's go! I'm with you every step"],
   };
 
   function getMsg(key) {
@@ -132,7 +132,7 @@ export function useALStateMachine() {
 
   /* Called on next phase / level up */
   function onNextPhase() {
-    transition('nextphase', "Level up! 🌟", 1800);
+    transition('nextphase', "Level up!", 1800);
   }
 
   /* Start thinking timer — fires if user takes >4s */

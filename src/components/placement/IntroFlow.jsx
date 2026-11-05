@@ -1,4 +1,5 @@
 'use client';
+import CampusGlyph from '@/components/CampusGlyph';
 
 import { useState, useRef, useEffect } from 'react';
 import ALCharacter from './ALCharacter';
@@ -11,7 +12,7 @@ export default function IntroFlow({ onComplete }) {
   const [step, setStep]       = useState(0); // 0,1,2
   const [path, setPath]       = useState(null);
   const [alMood, setAlMood]   = useState('intro');
-  const [alMsg, setAlMsg]     = useState("Hi! I'm AL 👋 Let's get started!");
+  const [alMsg, setAlMsg]     = useState("Hi! I'm AL. Let's get started!");
   const [dir, setDir]         = useState('in'); // 'in' | 'out-left'
   const [selected, setSelected] = useState(null);
 
@@ -33,8 +34,8 @@ export default function IntroFlow({ onComplete }) {
     setTimeout(() => {
       const mood = choice === 'new' ? 'idle' : 'thinking';
       const msg  = choice === 'new'
-        ? "Great! Let's find the perfect starting point 🌱"
-        : "Nice! Let's figure out exactly where you are 🎯";
+        ? "Great! Let's find the perfect starting point"
+        : "Nice! Let's figure out exactly where you are";
       goNext(1, mood, msg);
     }, 500);
   }
@@ -46,8 +47,8 @@ export default function IntroFlow({ onComplete }) {
     setTimeout(() => {
       goNext(2, 'progress',
         choice === 'a1'
-          ? "You're about to begin an amazing journey! 🚀"
-          : "This will only take ~10 minutes. Easy! ✨"
+          ? "You're about to begin an amazing journey!"
+          : "This will only take ~10 minutes. Easy!"
       );
     }, 500);
   }
@@ -239,7 +240,7 @@ function Step2({ path, onContinue }) {
             borderRadius: 999, padding: '6px 14px',
             color: '#ddd6fe', fontSize: 12, fontWeight: 800,
           }}>
-            <span style={{ fontSize: 14 }}>{icon}</span>{text}
+            <CampusGlyph symbol={icon} size={14}/>{text}
           </div>
         ))}
       </div>
@@ -342,7 +343,7 @@ function IntroOptionButton({ label, sub, icon, selected, onClick, accent }) {
         fontSize: 24,
         transition: 'all 0.22s ease',
       }}>
-        {selected ? '✓' : icon}
+        {selected ? '✓' : <CampusGlyph symbol={icon} size={24} className="inline-block"/>}
       </div>
 
       {/* Text */}

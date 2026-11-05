@@ -1,4 +1,5 @@
 'use client';
+import CampusGlyph from '@/components/CampusGlyph';
 
 import { useEffect, useRef } from 'react';
 
@@ -28,7 +29,7 @@ export default function FeedbackBubble({ message, type = 'correct', visible }) {
   const C = {
     correct: { bg:'rgba(34,197,94,0.16)',  border:'rgba(34,197,94,0.38)',  text:'#86efac', icon:'✓' },
     wrong:   { bg:'rgba(239,68,68,0.14)',   border:'rgba(239,68,68,0.32)',  text:'#fca5a5', icon:'✗' },
-    info:    { bg:'rgba(139,92,246,0.16)',  border:'rgba(139,92,246,0.32)', text:'#c4b5fd', icon:'💫' },
+    info:    { bg:'rgba(139,92,246,0.16)',  border:'rgba(139,92,246,0.32)', text:'#c4b5fd', icon:'·' },
   };
   const c = C[type] || C.info;
 

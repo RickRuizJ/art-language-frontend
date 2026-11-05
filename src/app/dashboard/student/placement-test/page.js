@@ -94,7 +94,7 @@ function PlacementTestPage() {
 
       AL.onResult(isCorrect);
       const type = isCorrect ? 'correct' : 'wrong';
-      setFeedback({ visible:true, msg: AL.alMsg || (isCorrect ? 'Nice! ✨' : 'Oops! Keep going 💜'), type });
+      setFeedback({ visible:true, msg: AL.alMsg || (isCorrect ? 'Nice!'  : 'Keep going!'), type });
 
       timerRef.current = setTimeout(() => {
         setFeedback(f => ({ ...f, visible:false }));

@@ -21,7 +21,7 @@ export default function ManualGrading({onSaved,filters={}}){
    const payload={...form,score:form.score,maxScore:form.maxScore};
    if(editing)await manualGradeAPI.update(editing.id,{score:payload.score,maxScore:payload.maxScore,feedback:payload.feedback,reason:payload.reason,version:editing.version,isActive:payload.isActive});
    else await manualGradeAPI.create(payload);
-   cancel();await load();onSaved?.();setMessage(editing?'Grade corrected with history.':'Manual grade added. Official automatic average is unchanged.');
+   cancel();await load();onSaved?.();setMessage(editing?'Grade corrected with history.':'Manual grade added. Group Avg. Progress includes valid manual grades.');
   }catch(e){setError(e.response?.data?.message||'Could not save grade.');}finally{setBusy(false);}
  }
  const startEdit=g=>{setEditing(g);setForm({...empty(),...g,score:String(g.score),maxScore:String(g.maxScore),feedback:g.feedback||'',reason:''});setError('');window.scrollTo({top:0,behavior:'smooth'});};
@@ -29,7 +29,7 @@ export default function ManualGrading({onSaved,filters={}}){
  async function openHistory(g){try{const r=await manualGradeAPI.history(g.id);setHistory({grade:g,...r.data.data});}catch(e){setError(e.response?.data?.message||'Could not load history.');}}
  async function archiveGrade(g){const reason=form.reason.trim();if(!reason){setError('Enter a correction reason before archiving this grade.');return;}setBusy(true);try{await manualGradeAPI.archive(g.id,{version:g.version,reason});setHistory(null);cancel();await load();onSaved?.();setMessage('Grade archived. History preserved.');}catch(e){setError(e.response?.data?.message||'Could not archive grade.');}finally{setBusy(false);}}
  return <section className="space-y-4" aria-label="Manual grading">
-  <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-xl font-bold">Manual Grading</h3><p className="text-sm text-neutral-600">External results stay separate from the official automatic average. The list and export follow the group, student and date filters above.</p></div><button type="button" className="btn btn-outline" disabled={busy} onClick={exportCsv}>Export all filtered manual grades</button></div>
+  <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-xl font-bold">Manual Grading</h3><p className="text-sm text-neutral-600">Manual results contribute to group Avg. Progress; Analytics also keeps its automatic-only breakdown. The list and export follow the group, student and date filters above.</p></div><button type="button" className="btn btn-outline" disabled={busy} onClick={exportCsv}>Export all filtered manual grades</button></div>
   {error&&<p role="alert" className="p-3 bg-red-50 text-red-700 rounded-xl">{error}</p>}{message&&<p role="status" className="p-3 bg-green-50 text-green-800 rounded-xl">{message}</p>}
   <form className="card grid gap-3 sm:grid-cols-2 lg:grid-cols-3" onSubmit={save} aria-label="Manual grade form">
    <label className="text-sm">Group<select aria-label="Manual grade group" className="input mt-1" required disabled={Boolean(editing)} value={form.groupId} onChange={e=>update('groupId',e.target.value)}><option value="">Select group</option>{people.groups.filter(g=>g.isActive||editing?.groupId===g.id).map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select></label>
